@@ -1,111 +1,21 @@
 extends Node2D
 
-# star variables, includes viewport size get
+# stars
 var stars = []
-const star_density = 1 / 1000.
+const star_density = 1 / 10000.
 @onready var view_size = get_viewport().size
 @onready var total_stars = view_size.x * view_size.y * star_density
 const min_star_radius = .5
 const max_star_radius = 1.5
 const max_star_flux = 1
 const max_star_speed = 10
+
+# planets
 const planet_rim_width = 1.5
-
-# core element names
-enum Element {SIGHT, MIGHT, LIGHT, EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE}
-
-# detailed element info
-var elements = {
-	Element.EARTH: {
-		'color': Color(1,0,0),
-		'description': 'The Red Volcano',
-		'card': preload('res://images/cards/earth.png'),
-		'row': 7,
-		'column': 2
-	},
-	Element.FIRE: {
-		'color': Color(1,.5,0),
-		'description': 'The Orange Torch',
-		'card': preload('res://images/cards/fire.png'),
-		'row': 5,
-		'column': 2
-	},
-	Element.ENERGY: {
-		'color': Color(1,1,0),
-		'description': 'The Yellow Spark',
-		'card': preload('res://images/cards/energy.png'),
-		'row': 3,
-		'column': 2
-	},
-	Element.NATURE: {
-		'color': Color(0,1,0),
-		'description': 'The Green Tree',
-		'card': preload('res://images/cards/nature.png'),
-		'row': 1,
-		'column': 2
-	},
-	Element.AIR: {
-		'color': Color(0,1,1),
-		'description': 'The Cyan Cloud',
-		'card': preload('res://images/cards/air.png'),
-		'row': 1,
-		'column': 0
-	},
-	Element.ICE: {
-		'color': Color(0,.5,1),
-		'description': 'The Cerulean Star',
-		'card': preload('res://images/cards/ice.png'),
-		'row': 3,
-		'column': 0
-	},
-	Element.WATER: {
-		'color': Color(0,0,1),
-		'description': 'The Cobalt Droplet',
-		'card': preload('res://images/cards/water.png'),
-		'row': 5,
-		'column': 0
-	},
-	Element.MAGIC: {
-		'color': Color(.5,0,1),
-		'description': 'The Purple Crystal',
-		'card': preload('res://images/cards/magic.png'),
-		'row': 7,
-		'column': 0
-	},
-	Element.LOVE: {
-		'color': Color(1,0,1).lightened(.5),
-		'description': 'The Pink Heart',
-		'card': preload('res://images/cards/love.png'),
-		'row': 0,
-		'column': 1
-	},
-	Element.LIGHT: {
-		'color': Color(1,1,1),
-		'description': 'The White Sun',
-		'card': preload('res://images/cards/light.png'),
-		'row': 2,
-		'column': 1
-	},
-	Element.MIGHT: {
-		'color': Color(.66,.66,.66),
-		'description': 'The Gray Moon',
-		'card': preload('res://images/cards/might.png'),
-		'row': 4,
-		'column': 1
-	},
-	Element.SIGHT: {
-		'color': Color(.33,.33,.33),
-		'description': 'The Black Eye',
-		'card': preload('res://images/cards/sight.png'),
-		'row': 6,
-		'column': 1
-	}
-}
-
-# planet variables
 var planets = []
 var total_planets = Element.size()
 
+# ball
 @onready var ball = {
 	'position': Vector2(view_size.x / 2, 4 * view_size.y / 9),
 	'speed': 0, 
@@ -114,6 +24,227 @@ var total_planets = Element.size()
 	'gravity': Vector2.ZERO,
 	'planet': null,
 	'color': Color.WHITE
+}
+
+# aimer
+var click_start_pos: Vector2
+var click_end_pos: Vector2
+var click_drag_pos: Vector2
+var draw_drag_line = false
+var fade_drag_line = false
+var line_end_pos: Vector2
+var drag_color: Color
+
+# elements
+enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, MIGHT, SIGHT}
+var elements = {
+	Element.EARTH: {
+		'card': preload('res://images/cards/earth.png'),
+		'row': 7,
+		'column': 2,
+		'order': 1,
+		'color': Color(1,0,0),
+		'color_name': 'red',
+		'symbol': 'volcano',
+		'aspect': 'rage',
+		'realm': 'hell',
+		'pattern': {
+			0: [1],
+			1: [2],
+			2: [3,6],
+			3: [4],
+			5: [6,'C'],
+			6: [7],
+			7: ['C']
+		}
+	},
+	Element.FIRE: {
+		'card': preload('res://images/cards/fire.png'),
+		'row': 5,
+		'column': 2,
+		'order': 2,
+		'color': Color(1,.5,0),
+		'color_name': 'orange',
+		'symbol': 'torch',
+		'aspect': 'fear',
+		'realm': 'chaos',
+		'pattern': {
+			0: [5,7],
+			2: [5,7],
+			4: [5,7]
+		}
+	},
+	Element.ENERGY: {
+		'card': preload('res://images/cards/energy.png'),
+		'row': 3,
+		'column': 2,
+		'order': 3,
+		'color': Color(1,1,0),
+		'color_name': 'yellow',
+		'symbol': 'spark',
+		'aspect': 'thrill',
+		'realm': 'power',
+		'pattern': {
+			0: [4,6],
+			1: [5,6],
+			2: [4,5]
+		}
+	},
+	Element.NATURE: {
+		'card': preload('res://images/cards/nature.png'),
+		'row': 1,
+		'column': 2,
+		'order': 4,
+		'color': Color(0,1,0),
+		'color_name': 'green',
+		'symbol': 'tree',
+		'aspect': 'joy',
+		'realm': 'life',
+		'pattern': {
+			0: [2,4],
+			2: [4,5,7],
+			5: ['C'],
+			6: ['C'],
+			7: ['C']
+		}
+	},
+	Element.AIR: {
+		'card': preload('res://images/cards/air.png'),
+		'row': 1,
+		'column': 0,
+		'order': 5,
+		'color': Color(0,1,1),
+		'color_name': 'cyan',
+		'symbol': 'cloud',
+		'aspect': 'freedom',
+		'realm': 'heaven',
+		'pattern': {
+			0: [1,4],
+			1: ['C'],
+			2: [5,7],
+			3: [4,'C']
+		}
+	},
+	Element.ICE: {
+		'card': preload('res://images/cards/ice.png'),
+		'row': 3,
+		'column': 0,
+		'order': 6,
+		'color': Color(0,.5,1),
+		'color_name': 'cerulean',
+		'symbol': 'star',
+		'aspect': 'peace',
+		'realm': 'winter',
+		'pattern': {
+			1: [3,5],
+			2: [5,7],
+			3: [7]
+		}
+	},
+	Element.WATER: {
+		'card': preload('res://images/cards/water.png'),
+		'row': 5,
+		'column': 0,
+		'order': 7,
+		'color': Color(0,0,1),
+		'color_name': 'cobalt',
+		'symbol': 'droplet',
+		'aspect': 'sorrow',
+		'realm': 'depths',
+		'pattern': {
+			2: [5,6,7],
+			5: [6],
+			6: [7]
+		}
+	},
+	Element.MAGIC: {
+		'card': preload('res://images/cards/magic.png'),
+		'row': 7,
+		'column': 0,
+		'order': 8,
+		'color': Color(.5,0,1),
+		'color_name': 'purple',
+		'symbol': 'crystal',
+		'aspect': 'beauty',
+		'realm': 'secrets',
+		'pattern': {
+			0: [1,4,6],
+			1: [3,'C'],
+			3: [4,'C'],
+			4: [6,'C'],
+			6: ['C']
+		}
+	},
+	Element.LOVE: {
+		'card': preload('res://images/cards/love.png'),
+		'row': 0,
+		'column': 1,
+		'order': 9,
+		'color': Color(1,0,1),
+		'color_name': 'pink',
+		'symbol': 'heart',
+		'aspect': 'safety',
+		'realm': 'family',
+		'pattern': {
+			0: [1,6],
+			1: ['C'],
+			3: [4,'C'],
+			4: [6]
+		}
+	},
+	Element.LIGHT: {
+		'card': preload('res://images/cards/light.png'),
+		'row': 2,
+		'column': 1,
+		'order': 10,
+		'color': Color(1,1,1),
+		'color_name': 'white',
+		'symbol': 'sun',
+		'aspect': 'clarity',
+		'realm': 'space',
+		'pattern': {
+			0: [3,5],
+			1: [4,6],
+			2: [5,7],
+			3: [6],
+			4: [7]
+		}
+	},
+	Element.MIGHT: {
+		'card': preload('res://images/cards/might.png'),
+		'row': 4,
+		'column': 1,
+		'order': 11,
+		'color': Color(.67,.67,.67),
+		'color_name': 'gray',
+		'symbol': 'moon',
+		'aspect': 'presence',
+		'realm': 'gravity',
+		'pattern': {
+			0: [1,5,7],
+			3: [4],
+			4: [5,7],
+			5: [6],
+			6: [7]
+		}
+	},
+	Element.SIGHT: {
+		'card': preload('res://images/cards/sight.png'),
+		'row': 6,
+		'column': 1,
+		'order': 12,
+		'color': Color(.33,.33,.33),
+		'color_name': 'black',
+		'symbol': 'eye',
+		'aspect': 'desire',
+		'realm': 'spirit',
+		'pattern': {
+			0: [3,5],
+			1: [4],
+			2: [6],
+			4: [7]
+		}
+	}
 }
 
 func _ready() -> void:
@@ -140,12 +271,6 @@ func _ready() -> void:
 			'element': element
 		})
 
-var click_start_pos: Vector2
-var click_end_pos: Vector2
-var click_drag_pos: Vector2
-var draw_drag_line = false
-var fade_drag_line = false
-
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
@@ -153,12 +278,14 @@ func _input(event: InputEvent) -> void:
 				click_start_pos = event.position
 				draw_drag_line = true
 				fade_drag_line = false
+			# release click
 			else:
 				click_end_pos = event.position
 				fade_drag_line = true
 				ball.direction = (-click_end_pos + click_start_pos).normalized()
 				ball.speed = click_end_pos.distance_to(click_start_pos) / 50
-				ball.orbit_planet = null
+				if ball.planet != null:
+					ball.color = elements[ball.planet.element].color
 
 func _process(delta: float) -> void:
 	# for draw function's ball drag line
@@ -232,9 +359,7 @@ func _process(delta: float) -> void:
 	
 	# for _draw()
 	queue_redraw()
-		
-var line_end_pos: Vector2
-var drag_color: Color
+
 func _draw() -> void:
 	# draw stars
 	for star in stars:
@@ -272,4 +397,6 @@ func _draw() -> void:
 
 	# draw ball
 	draw_circle(ball.position, ball.radius, ball.color, true, -1.0, true)
-	ball.color.a = clamp(ball.color.a + .1, 0, 1)
+	ball.color.v = clamp(ball.color.v + .01, 0, 1)
+	ball.color.s = clamp(ball.color.s - .01, 0, 1)
+	ball.color.a = clamp(ball.color.a + .01, 0, 1)
