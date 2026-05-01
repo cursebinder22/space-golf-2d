@@ -53,9 +53,11 @@ var elements = {
 			1: [2],
 			2: [3,6],
 			3: [4],
+			4: [],
 			5: [6,'C'],
 			6: [7],
-			7: ['C']
+			7: ['C'],
+			'C': []
 		}
 	},
 	Element.FIRE: {
@@ -71,7 +73,9 @@ var elements = {
 		'pattern': {
 			0: [5,7],
 			2: [5,7],
-			4: [5,7]
+			4: [5,7],
+			5: [],
+			7: []
 		}
 	},
 	Element.ENERGY: {
@@ -87,7 +91,10 @@ var elements = {
 		'pattern': {
 			0: [4,6],
 			1: [5,6],
-			2: [4,5]
+			2: [4,5],
+			4: [],
+			5: [],
+			6: []
 		}
 	},
 	Element.NATURE: {
@@ -103,9 +110,11 @@ var elements = {
 		'pattern': {
 			0: [2,4],
 			2: [4,5,7],
+			4: [],
 			5: ['C'],
 			6: ['C'],
-			7: ['C']
+			7: ['C'],
+			'C': []
 		}
 	},
 	Element.AIR: {
@@ -122,7 +131,11 @@ var elements = {
 			0: [1,4],
 			1: ['C'],
 			2: [5,7],
-			3: [4,'C']
+			3: [4,'C'],
+			4: [],
+			5: [],
+			7: [],
+			'C': []
 		}
 	},
 	Element.ICE: {
@@ -138,7 +151,9 @@ var elements = {
 		'pattern': {
 			1: [3,5],
 			2: [5,7],
-			3: [7]
+			3: [7],
+			5: [],
+			7: []
 		}
 	},
 	Element.WATER: {
@@ -154,7 +169,8 @@ var elements = {
 		'pattern': {
 			2: [5,6,7],
 			5: [6],
-			6: [7]
+			6: [7],
+			7: []
 		}
 	},
 	Element.MAGIC: {
@@ -172,7 +188,8 @@ var elements = {
 			1: [3,'C'],
 			3: [4,'C'],
 			4: [6,'C'],
-			6: ['C']
+			6: ['C'],
+			'C': []
 		}
 	},
 	Element.LOVE: {
@@ -180,7 +197,7 @@ var elements = {
 		'row': 0,
 		'column': 1,
 		'order': 9,
-		'color': Color(1,0,1),
+		'color': Color(1,0,1).lightened(.5),
 		'color_name': 'pink',
 		'symbol': 'heart',
 		'aspect': 'safety',
@@ -189,7 +206,9 @@ var elements = {
 			0: [1,6],
 			1: ['C'],
 			3: [4,'C'],
-			4: [6]
+			4: [6],
+			6: [],
+			'C': []
 		}
 	},
 	Element.LIGHT: {
@@ -207,7 +226,10 @@ var elements = {
 			1: [4,6],
 			2: [5,7],
 			3: [6],
-			4: [7]
+			4: [7],
+			5: [],
+			6: [],
+			7: []
 		}
 	},
 	Element.MIGHT: {
@@ -222,10 +244,12 @@ var elements = {
 		'realm': 'gravity',
 		'pattern': {
 			0: [1,5,7],
+			1: [],
 			3: [4],
 			4: [5,7],
 			5: [6],
-			6: [7]
+			6: [7],
+			7: []
 		}
 	},
 	Element.SIGHT: {
@@ -242,7 +266,11 @@ var elements = {
 			0: [3,5],
 			1: [4],
 			2: [6],
-			4: [7]
+			3: [],
+			4: [7],
+			5: [],
+			6: [],
+			7: []
 		}
 	}
 }
@@ -278,8 +306,7 @@ func _input(event: InputEvent) -> void:
 				click_start_pos = event.position
 				draw_drag_line = true
 				fade_drag_line = false
-			# release click
-			else:
+			else: # release click
 				click_end_pos = event.position
 				fade_drag_line = true
 				ball.direction = (-click_end_pos + click_start_pos).normalized()
@@ -360,6 +387,22 @@ func _process(delta: float) -> void:
 	# for _draw()
 	queue_redraw()
 
+func draw_pattern(position: Vector2, element: Element, radius: float, color: Color, line_width: float = planet_rim_width):
+	for from_point in elements[element].pattern:
+		for to_point in elements[element].pattern[from_point]:
+			var from_point_pos = position + Vector2(
+				radius * cos(from_point * TAU/8),
+				radius * -sin(from_point * TAU/8)
+			)
+			if str(to_point) == 'C':
+				draw_line(from_point_pos, position, color, line_width, true)
+			else:
+				var to_point_pos = position + Vector2(
+					radius * cos(to_point * TAU/8),
+					radius * -sin(to_point * TAU/8)
+				)
+				draw_line(from_point_pos, to_point_pos, color, line_width, true)
+
 func _draw() -> void:
 	# draw stars
 	for star in stars:
@@ -370,12 +413,32 @@ func _draw() -> void:
 	
 	# draw planets
 	for planet in planets:
-		var element = elements[planet.element]
-		var card_size = element.card.get_size() * 2
+		var card_size = elements[planet.element].card.get_size() * 2
 		var rect = Rect2(planet.position - card_size / 2, card_size)
+		var planet_color = elements[planet.element].color
+		
+		# hide stars behind planet
 		draw_circle(planet.position, planet.radius, Color(0,0,0), true)
-		draw_texture_rect(element.card, rect, false)
-		draw_circle(planet.position, planet.radius, element.color, false, planet_rim_width, true)
+		
+		# smaller corner patterns
+		for from_point in elements[planet.element].pattern:
+			if str(from_point) == 'C':
+				draw_pattern(planet.position, planet.element, planet.radius * 1/3, planet_color.darkened(.5))
+			else:
+				var from_point_pos = planet.position + Vector2(
+					planet.radius * 2/3 * cos(from_point * TAU/8),
+					planet.radius * 2/3 * -sin(from_point * TAU/8)
+				)
+				draw_pattern(from_point_pos, planet.element, planet.radius * 1/3, planet_color.darkened(.5))
+		
+		# largest central pattern
+		draw_pattern(planet.position, planet.element, planet.radius * 2/3, planet_color)
+		
+		# TODO: make the cards spin when the planet is touched by the ball
+		#draw_texture_rect(elements[planet.element].card, rect, false)
+		
+		# planet surface rim
+		draw_circle(planet.position, planet.radius, planet_color, false, planet_rim_width, true)
 	
 	# draw drag line and dots
 	if draw_drag_line:
@@ -386,9 +449,9 @@ func _draw() -> void:
 			drag_color = Color.from_hsv(ratio, 1, 1)
 		else:
 			drag_color.a -= .1
-			if drag_color.v < .1:
+			if drag_color.a <= 0:
 				draw_drag_line = false
-		draw_line(ball.position, line_end_pos, drag_color, planet_rim_width * 1.25, true)
+		draw_line(ball.position, line_end_pos, drag_color, planet_rim_width, true)
 		# big circle
 		draw_circle(line_end_pos, ball.radius, drag_color, true, -1.0, true)
 		draw_circle(line_end_pos, ball.radius/2, drag_color, true, -1.0, true)
