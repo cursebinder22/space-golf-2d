@@ -181,7 +181,7 @@ var elements = {
 		'color': Color(.5,0,1),
 		'color_name': 'purple',
 		'symbol': 'crystal',
-		'aspect': 'beauty',
+		'aspect': 'melancholy',
 		'realm': 'secrets',
 		'pattern': {
 			0: [1,4,6],
