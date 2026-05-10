@@ -9,6 +9,7 @@ const min_star_radius = .5
 const max_star_radius = 1.5
 const max_star_flux = 1
 const max_star_speed = 10
+const drift_speed = 1
 
 # planets
 const planet_rim_width = 1.5
@@ -17,7 +18,7 @@ var total_planets = Element.size()
 
 # ball
 @onready var ball = {
-	'position': Vector2(view_size.x / 2, 4 * view_size.y / 9),
+	'position': Vector2(view_size.x / 2, view_size.y / 2),
 	'speed': 0, 
 	'direction': Vector2.ZERO,
 	'radius': 10,
@@ -51,11 +52,11 @@ var elements = {
 		'pattern': {
 			0: [1],
 			1: [2],
-			2: [3,6],
+			2: [3,'C'],
 			3: [4],
 			4: [],
-			5: [6,'C'],
-			6: [7],
+			5: [6,7,'C'],
+			6: [7,'C'],
 			7: ['C'],
 			'C': []
 		}
@@ -72,7 +73,9 @@ var elements = {
 		'realm': 'chaos',
 		'pattern': {
 			0: [5,7],
+			1: [5,7],
 			2: [5,7],
+			3: [5,7],
 			4: [5,7],
 			5: [],
 			7: []
@@ -124,17 +127,17 @@ var elements = {
 		'order': 5,
 		'color': Color(0,1,1),
 		'color_name': 'cyan',
-		'symbol': 'cloud',
+		'symbol': 'creature',
 		'aspect': 'freedom',
 		'realm': 'heaven',
 		'pattern': {
-			0: [1,4],
+			0: [4,5],
 			1: ['C'],
-			2: [5,7],
-			3: [4,'C'],
-			4: [],
-			5: [],
-			7: [],
+			3: ['C'],
+			4: [7,'C'],
+			5: ['C'],
+			6: ['C'],
+			7: ['C'],
 			'C': []
 		}
 	},
@@ -168,7 +171,7 @@ var elements = {
 		'realm': 'depths',
 		'pattern': {
 			2: [5,6,7],
-			5: [6],
+			5: [6,7],
 			6: [7],
 			7: []
 		}
@@ -204,10 +207,10 @@ var elements = {
 		'realm': 'family',
 		'pattern': {
 			0: [1,6],
-			1: ['C'],
-			3: [4,'C'],
+			1: [6,'C'],
+			3: [4,6,'C'],
 			4: [6],
-			6: [],
+			6: ['C'],
 			'C': []
 		}
 	},
@@ -222,12 +225,12 @@ var elements = {
 		'aspect': 'clarity',
 		'realm': 'space',
 		'pattern': {
-			0: [3,5],
-			1: [4,6],
-			2: [5,7],
-			3: [6],
-			4: [7],
-			5: [],
+			0: [2,6],
+			1: [3,7],
+			2: [4],
+			3: [5],
+			4: [6],
+			5: [7],
 			6: [],
 			7: []
 		}
@@ -243,11 +246,11 @@ var elements = {
 		'aspect': 'presence',
 		'realm': 'gravity',
 		'pattern': {
-			0: [1,5,7],
-			1: [],
-			3: [4],
-			4: [5,7],
-			5: [6],
+			0: [1,6,7],
+			1: [7],
+			3: [4,5],
+			4: [5,6],
+			5: [6,7],
 			6: [7],
 			7: []
 		}
@@ -292,7 +295,7 @@ func _ready() -> void:
 	for i in range(total_planets):
 		var element = Element.values()[i]
 		var planet_x = view_size.x / 4 + elements[element].column * view_size.x / 4
-		var planet_y = view_size.y / 9 + elements[element].row * view_size.y / 9
+		var planet_y = elements[element].row * view_size.y / 7 + view_size.y / 14
 		planets.append({
 			'position': Vector2(planet_x, planet_y),
 			'radius': min(view_size.x, view_size.y) / 8,
@@ -319,17 +322,12 @@ func _process(delta: float) -> void:
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		click_drag_pos = get_global_mouse_position()
 	
-	# ball gravity physics if it has touched a planet since last launch
-	if ball.planet != null:
-		var altitude = ball.position.distance_to(ball.planet.position) - ball.planet.radius
-		ball.gravity = 10 * (-ball.position + ball.planet.position).normalized() / altitude
-		var xv = ball.speed * ball.direction.x + ball.gravity.x
-		var yv = ball.speed * ball.direction.y + ball.gravity.y
-		ball.speed = sqrt(xv**2 + yv**2)
-		ball.direction = Vector2(xv, yv).normalized()
-	ball.position += ball.speed * ball.direction
-	
 	for planet in planets:
+		# drift upward, wrap around screen
+		planet.position.y -= drift_speed
+		if planet.position.y <= -planet.radius:
+			planet.position.y += view_size.y * 8/7
+		
 		var dist = ball.position.distance_to(planet.position)
 		var min_dist = ball.radius + planet.radius + planet_rim_width
 		# if touching planet, apply gravity
@@ -342,16 +340,34 @@ func _process(delta: float) -> void:
 			# bounce ball on planet surface
 			var angle_to_tangent = -ball.direction.angle_to(planet_to_ball_dir)
 			ball.direction = -ball.direction.rotated(-angle_to_tangent * 2)
-			
-	# bounce ball on screen edges
-	if ball.position.x < ball.radius \
-	or ball.position.x > view_size.x - ball.radius \
-	or ball.position.y < ball.radius \
-	or ball.position.y > view_size.y - ball.radius:
-		ball.position.x = clamp(ball.position.x, ball.radius, view_size.x - ball.radius)
-		ball.position.y = clamp(ball.position.y, ball.radius, view_size.y - ball.radius)
-		ball.speed *= .1
-		ball.direction *= -1
+	
+	# ball gravity physics if it has touched a planet since last launch
+	ball.position.y -= drift_speed
+	if ball.planet != null:
+		var altitude = ball.position.distance_to(ball.planet.position) - ball.planet.radius
+		ball.gravity = 10 * (-ball.position + ball.planet.position).normalized() / altitude
+		var xv = ball.speed * ball.direction.x + ball.gravity.x
+		var yv = ball.speed * ball.direction.y + ball.gravity.y
+		ball.speed = sqrt(xv**2 + yv**2)
+		ball.direction = Vector2(xv, yv).normalized()
+	ball.position += ball.speed * ball.direction
+	
+	# wrap ball around screen edges
+	if ball.position.x <= -ball.radius:
+		ball.position.x += view_size.x + ball.radius * 2
+		ball.planet = null
+		ball.color.a = 0
+	if ball.position.x >= view_size.x + ball.radius:
+		ball.position.x -= view_size.x + 2 * ball.radius
+		ball.planet = null
+		ball.color.a = 0
+	if ball.position.y <= -ball.radius:
+		ball.position.y += ball.radius * 2 + view_size.y
+		ball.planet = null
+		ball.color.a = 0
+	if ball.position.y >= view_size.y + ball.radius:
+		ball.position.y -= ball.radius * 2 + view_size.y
+		ball.planet = null
 		ball.color.a = 0
 	
 	for star in stars:
@@ -462,4 +478,4 @@ func _draw() -> void:
 	draw_circle(ball.position, ball.radius, ball.color, true, -1.0, true)
 	ball.color.v = clamp(ball.color.v + .01, 0, 1)
 	ball.color.s = clamp(ball.color.s - .01, 0, 1)
-	ball.color.a = clamp(ball.color.a + .01, 0, 1)
+	ball.color.a = clamp(ball.color.a + .1, 0, 1)
