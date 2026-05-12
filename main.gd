@@ -9,7 +9,7 @@ const min_star_radius = .5
 const max_star_radius = 1.5
 const max_star_flux = 1
 const max_star_speed = 10
-const drift_speed = 1
+const drift_speed = .1
 
 # planets
 const planet_rim_width = 1.5
@@ -22,7 +22,6 @@ var total_planets = Element.size()
 	'speed': 0, 
 	'direction': Vector2.ZERO,
 	'radius': 10,
-	'gravity': Vector2.ZERO,
 	'planet': null,
 	'color': Color.WHITE
 }
@@ -40,7 +39,7 @@ var drag_color: Color
 enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, MIGHT, SIGHT}
 var elements = {
 	Element.EARTH: {
-		'card': preload('res://images/cards/earth.png'),
+		'friction': 1,
 		'row': 7,
 		'column': 2,
 		'order': 1,
@@ -62,7 +61,7 @@ var elements = {
 		}
 	},
 	Element.FIRE: {
-		'card': preload('res://images/cards/fire.png'),
+		'friction': .1,
 		'row': 5,
 		'column': 2,
 		'order': 2,
@@ -82,7 +81,7 @@ var elements = {
 		}
 	},
 	Element.ENERGY: {
-		'card': preload('res://images/cards/energy.png'),
+		'friction': .01,
 		'row': 3,
 		'column': 2,
 		'order': 3,
@@ -101,7 +100,7 @@ var elements = {
 		}
 	},
 	Element.NATURE: {
-		'card': preload('res://images/cards/nature.png'),
+		'friction': .1,
 		'row': 1,
 		'column': 2,
 		'order': 4,
@@ -121,7 +120,7 @@ var elements = {
 		}
 	},
 	Element.AIR: {
-		'card': preload('res://images/cards/air.png'),
+		'friction': .01,
 		'row': 1,
 		'column': 0,
 		'order': 5,
@@ -142,7 +141,7 @@ var elements = {
 		}
 	},
 	Element.ICE: {
-		'card': preload('res://images/cards/ice.png'),
+		'friction': .01,
 		'row': 3,
 		'column': 0,
 		'order': 6,
@@ -160,7 +159,7 @@ var elements = {
 		}
 	},
 	Element.WATER: {
-		'card': preload('res://images/cards/water.png'),
+		'friction': .01,
 		'row': 5,
 		'column': 0,
 		'order': 7,
@@ -177,7 +176,7 @@ var elements = {
 		}
 	},
 	Element.MAGIC: {
-		'card': preload('res://images/cards/magic.png'),
+		'friction': .1,
 		'row': 7,
 		'column': 0,
 		'order': 8,
@@ -196,7 +195,7 @@ var elements = {
 		}
 	},
 	Element.LOVE: {
-		'card': preload('res://images/cards/love.png'),
+		'friction': .1,
 		'row': 0,
 		'column': 1,
 		'order': 9,
@@ -215,7 +214,7 @@ var elements = {
 		}
 	},
 	Element.LIGHT: {
-		'card': preload('res://images/cards/light.png'),
+		'friction': .1,
 		'row': 2,
 		'column': 1,
 		'order': 10,
@@ -236,7 +235,7 @@ var elements = {
 		}
 	},
 	Element.MIGHT: {
-		'card': preload('res://images/cards/might.png'),
+		'friction': .1,
 		'row': 4,
 		'column': 1,
 		'order': 11,
@@ -244,7 +243,7 @@ var elements = {
 		'color_name': 'gray',
 		'symbol': 'moon',
 		'aspect': 'presence',
-		'realm': 'gravity',
+		'realm': 'reality',
 		'pattern': {
 			0: [1,6,7],
 			1: [7],
@@ -256,7 +255,7 @@ var elements = {
 		}
 	},
 	Element.SIGHT: {
-		'card': preload('res://images/cards/sight.png'),
+		'friction': .1,
 		'row': 6,
 		'column': 1,
 		'order': 12,
@@ -277,6 +276,12 @@ var elements = {
 		}
 	}
 }
+
+func order_up(element: Element) -> Element:
+	for e in Element.values():
+		if elements[element].order + 1 == elements[e].order:
+			return e
+	return Element.EARTH
 
 func _ready() -> void:
 	# nearest neighbor texture scaling
@@ -316,41 +321,38 @@ func _input(event: InputEvent) -> void:
 				ball.speed = click_end_pos.distance_to(click_start_pos) / 50
 				if ball.planet != null:
 					ball.color = elements[ball.planet.element].color
+				ball.planet = null
 
 func _process(delta: float) -> void:
-	# for draw function's ball drag line
+	# for draw function's drag line
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		click_drag_pos = get_global_mouse_position()
 	
+	# basic ball movement (before collision & wrapping)
+	ball.position += ball.speed * ball.direction
+	ball.position.y -= drift_speed # keeps ball from sliding behind planet motion
+	
+	# planets: drift upward, wrap around screen -> randomize element
 	for planet in planets:
-		# drift upward, wrap around screen
 		planet.position.y -= drift_speed
 		if planet.position.y <= -planet.radius:
 			planet.position.y += view_size.y * 8/7
+			planet.element = Element.values().pick_random()
 		
+		# transfer ownership if ball collision
 		var dist = ball.position.distance_to(planet.position)
 		var min_dist = ball.radius + planet.radius + planet_rim_width
-		# if touching planet, apply gravity
 		if dist < min_dist:
 			ball.planet = planet
-			var planet_to_ball_dir = (ball.position - planet.position).normalized()
-			ball.position = planet.position + min_dist * planet_to_ball_dir
-			# slow ball with every surface contact to represent friction 
-			ball.speed *= .9
-			# bounce ball on planet surface
-			var angle_to_tangent = -ball.direction.angle_to(planet_to_ball_dir)
-			ball.direction = -ball.direction.rotated(-angle_to_tangent * 2)
 	
-	# ball gravity physics if it has touched a planet since last launch
-	ball.position.y -= drift_speed
+	# planet-magnetized ball rolling behavior
 	if ball.planet != null:
-		var altitude = ball.position.distance_to(ball.planet.position) - ball.planet.radius
-		ball.gravity = 10 * (-ball.position + ball.planet.position).normalized() / altitude
-		var xv = ball.speed * ball.direction.x + ball.gravity.x
-		var yv = ball.speed * ball.direction.y + ball.gravity.y
-		ball.speed = sqrt(xv**2 + yv**2)
-		ball.direction = Vector2(xv, yv).normalized()
-	ball.position += ball.speed * ball.direction
+		var planet_to_ball_dir = (ball.position - ball.planet.position).normalized()
+		var min_dist = ball.radius + ball.planet.radius + planet_rim_width
+		var tangent = Vector2.from_angle(planet_to_ball_dir.angle() + TAU/4)
+		ball.position = ball.planet.position + min_dist * planet_to_ball_dir
+		ball.speed *= (1 - elements[ball.planet.element].friction) * ball.direction.dot(tangent)
+		ball.direction = tangent
 	
 	# wrap ball around screen edges
 	if ball.position.x <= -ball.radius:
@@ -370,8 +372,8 @@ func _process(delta: float) -> void:
 		ball.planet = null
 		ball.color.a = 0
 	
+	# stars randomly wander
 	for star in stars:
-		# move via constructed velocity
 		var velocity = Vector2(
 			star.speed * cos(star.direction),
 			star.speed * -sin(star.direction))
@@ -400,7 +402,7 @@ func _process(delta: float) -> void:
 		elif star.position.y >= view_size.y + star.radius:
 			star.position.y -= view_size.y + star.radius * 2
 	
-	# for _draw()
+	# call draw function
 	queue_redraw()
 
 func draw_pattern(position: Vector2, element: Element, radius: float, color: Color, line_width: float = planet_rim_width):
@@ -420,17 +422,13 @@ func draw_pattern(position: Vector2, element: Element, radius: float, color: Col
 				draw_line(from_point_pos, to_point_pos, color, line_width, true)
 
 func _draw() -> void:
-	# draw stars
 	for star in stars:
 		# lux contingent on radius, affects color
 		var lux = (star.radius - min_star_radius) / (max_star_radius - min_star_radius)
 		var color = Color(lux, lux, lux)
 		draw_circle(star.position, star.radius, color, true, -1.0, true)
 	
-	# draw planets
 	for planet in planets:
-		var card_size = elements[planet.element].card.get_size() * 2
-		var rect = Rect2(planet.position - card_size / 2, card_size)
 		var planet_color = elements[planet.element].color
 		
 		# hide stars behind planet
@@ -450,13 +448,10 @@ func _draw() -> void:
 		# largest central pattern
 		draw_pattern(planet.position, planet.element, planet.radius * 2/3, planet_color)
 		
-		# TODO: make the cards spin when the planet is touched by the ball
-		#draw_texture_rect(elements[planet.element].card, rect, false)
-		
 		# planet surface rim
 		draw_circle(planet.position, planet.radius, planet_color, false, planet_rim_width, true)
 	
-	# draw drag line and dots
+	# drag line and dots
 	if draw_drag_line:
 		var dist = click_start_pos.distance_to(click_drag_pos)
 		var ratio = clamp(dist / min(view_size.x, view_size.y), 0, 1)
@@ -474,7 +469,7 @@ func _draw() -> void:
 		# small circle
 		draw_circle(ball.position + (ball.position - line_end_pos) / 2, ball.radius / 2, drag_color, true, -1.0, true)
 
-	# draw ball
+	# ball
 	draw_circle(ball.position, ball.radius, ball.color, true, -1.0, true)
 	ball.color.v = clamp(ball.color.v + .01, 0, 1)
 	ball.color.s = clamp(ball.color.s - .01, 0, 1)

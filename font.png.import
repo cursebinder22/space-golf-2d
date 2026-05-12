@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://7jk8o7i8wiag"
-path="res://.godot/imported/might.png-5e7849993c9c9cc3d5093ce9b2bc1373.ctex"
+uid="uid://fv5ykcngtnk0"
+path="res://.godot/imported/font.png-b6bb944f072a9edca7c6221ef7aeb6c9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://images/cards/might.png"
-dest_files=["res://.godot/imported/might.png-5e7849993c9c9cc3d5093ce9b2bc1373.ctex"]
+source_file="res://font.png"
+dest_files=["res://.godot/imported/font.png-b6bb944f072a9edca7c6221ef7aeb6c9.ctex"]
 
 [params]
 
