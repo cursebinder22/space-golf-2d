@@ -1,32 +1,40 @@
 extends Node2D
 
-# stars
-var stars = []
-const star_density = 1 / 10000.
 @onready var view_size = get_viewport().size
-@onready var total_stars = view_size.x * view_size.y * star_density
-const min_star_radius = .5
-const max_star_radius = 1.5
+@onready var min_view_size = min(view_size.x, view_size.y)
+
+# friction info
+const high_friction = .2
+const normal_friction = .1
+const low_friction = .01
+
+# planet info
+const drift_speed = 1
+var planets = []
+@onready var line_width = min_view_size / 2**8
+@onready var total_planets = Element.size()
+
+# star info
+const star_density = 1 / 10000.
 const max_star_flux = 1
 const max_star_speed = 10
-const drift_speed = .1
+var stars = []
+@onready var total_stars = view_size.x * view_size.y * star_density
+@onready var min_star_radius = line_width / 2**2
+@onready var max_star_radius = line_width
 
-# planets
-const planet_rim_width = 1.5
-var planets = []
-var total_planets = Element.size()
-
-# ball
+# ball info
+@onready var normal_ball_radius = line_width * 2**2
 @onready var ball = {
-	'position': Vector2(view_size.x / 2, view_size.y / 2),
+	'position': Vector2(view_size.x / 2, -2 * normal_ball_radius),
 	'speed': 0, 
 	'direction': Vector2.ZERO,
-	'radius': 10,
+	'radius': normal_ball_radius,
 	'planet': null,
 	'color': Color.WHITE
 }
 
-# aimer
+# aimer info
 var click_start_pos: Vector2
 var click_end_pos: Vector2
 var click_drag_pos: Vector2
@@ -35,13 +43,13 @@ var fade_drag_line = false
 var line_end_pos: Vector2
 var drag_color: Color
 
-# elements
+# element info
 enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, MIGHT, SIGHT}
-var elements = {
+@onready var elements = {
 	Element.EARTH: {
-		'friction': 1,
-		'row': 7,
-		'column': 2,
+		'friction': low_friction,
+		'row': 0,
+		'column': 0,
 		'order': 1,
 		'color': Color(1,0,0),
 		'color_name': 'red',
@@ -61,9 +69,9 @@ var elements = {
 		}
 	},
 	Element.FIRE: {
-		'friction': .1,
-		'row': 5,
-		'column': 2,
+		'friction': low_friction,
+		'row': -1,
+		'column': -1,
 		'order': 2,
 		'color': Color(1,.5,0),
 		'color_name': 'orange',
@@ -81,9 +89,9 @@ var elements = {
 		}
 	},
 	Element.ENERGY: {
-		'friction': .01,
-		'row': 3,
-		'column': 2,
+		'friction': low_friction,
+		'row': -1,
+		'column': 1,
 		'order': 3,
 		'color': Color(1,1,0),
 		'color_name': 'yellow',
@@ -100,9 +108,9 @@ var elements = {
 		}
 	},
 	Element.NATURE: {
-		'friction': .1,
-		'row': 1,
-		'column': 2,
+		'friction': low_friction,
+		'row': -2,
+		'column': 0,
 		'order': 4,
 		'color': Color(0,1,0),
 		'color_name': 'green',
@@ -120,9 +128,9 @@ var elements = {
 		}
 	},
 	Element.AIR: {
-		'friction': .01,
-		'row': 1,
-		'column': 0,
+		'friction': low_friction,
+		'row': -3,
+		'column': -1,
 		'order': 5,
 		'color': Color(0,1,1),
 		'color_name': 'cyan',
@@ -141,9 +149,9 @@ var elements = {
 		}
 	},
 	Element.ICE: {
-		'friction': .01,
-		'row': 3,
-		'column': 0,
+		'friction': low_friction,
+		'row': -3,
+		'column': 1,
 		'order': 6,
 		'color': Color(0,.5,1),
 		'color_name': 'cerulean',
@@ -159,8 +167,8 @@ var elements = {
 		}
 	},
 	Element.WATER: {
-		'friction': .01,
-		'row': 5,
+		'friction': low_friction,
+		'row': -4,
 		'column': 0,
 		'order': 7,
 		'color': Color(0,0,1),
@@ -176,9 +184,9 @@ var elements = {
 		}
 	},
 	Element.MAGIC: {
-		'friction': .1,
-		'row': 7,
-		'column': 0,
+		'friction': low_friction,
+		'row': -5,
+		'column': -1,
 		'order': 8,
 		'color': Color(.5,0,1),
 		'color_name': 'purple',
@@ -195,8 +203,8 @@ var elements = {
 		}
 	},
 	Element.LOVE: {
-		'friction': .1,
-		'row': 0,
+		'friction': low_friction,
+		'row': -5,
 		'column': 1,
 		'order': 9,
 		'color': Color(1,0,1).lightened(.5),
@@ -214,9 +222,9 @@ var elements = {
 		}
 	},
 	Element.LIGHT: {
-		'friction': .1,
-		'row': 2,
-		'column': 1,
+		'friction': low_friction,
+		'row': -6,
+		'column': 0,
 		'order': 10,
 		'color': Color(1,1,1),
 		'color_name': 'white',
@@ -235,9 +243,9 @@ var elements = {
 		}
 	},
 	Element.MIGHT: {
-		'friction': .1,
-		'row': 4,
-		'column': 1,
+		'friction': low_friction,
+		'row': -7,
+		'column': -1,
 		'order': 11,
 		'color': Color(.67,.67,.67),
 		'color_name': 'gray',
@@ -255,8 +263,8 @@ var elements = {
 		}
 	},
 	Element.SIGHT: {
-		'friction': .1,
-		'row': 6,
+		'friction': low_friction,
+		'row': -7,
 		'column': 1,
 		'order': 12,
 		'color': Color(.33,.33,.33),
@@ -296,14 +304,16 @@ func _ready() -> void:
 			'radius': randf_range(min_star_radius, max_star_radius),
 			'flux_dir': [-1,1].pick_random()
 		})
+	
 	# generate planets
 	for i in range(total_planets):
 		var element = Element.values()[i]
-		var planet_x = view_size.x / 4 + elements[element].column * view_size.x / 4
-		var planet_y = elements[element].row * view_size.y / 7 + view_size.y / 14
+		var planet_radius = min_view_size / 2**3
+		var planet_x = view_size.x / 2 + elements[element].column * planet_radius * 2
+		var planet_y = elements[element].row * view_size.y / 6 - planet_radius - line_width - normal_ball_radius * 2
 		planets.append({
 			'position': Vector2(planet_x, planet_y),
-			'radius': min(view_size.x, view_size.y) / 8,
+			'radius': planet_radius,
 			'element': element
 		})
 
@@ -330,47 +340,46 @@ func _process(delta: float) -> void:
 	
 	# basic ball movement (before collision & wrapping)
 	ball.position += ball.speed * ball.direction
-	ball.position.y -= drift_speed # keeps ball from sliding behind planet motion
+	ball.position.y += drift_speed # keeps ball from sliding behind planet motion
 	
-	# planets: drift upward, wrap around screen -> randomize element
+	# planets: drift downward, wrap around screen
 	for planet in planets:
-		planet.position.y -= drift_speed
-		if planet.position.y <= -planet.radius:
-			planet.position.y += view_size.y * 8/7
-			planet.element = Element.values().pick_random()
+		planet.position.y += drift_speed
+		if planet.position.y > view_size.y + planet.radius + line_width + 2 * normal_ball_radius:
+			planet.position.y -= view_size.y * 8/6
 		
 		# transfer ownership if ball collision
 		var dist = ball.position.distance_to(planet.position)
-		var min_dist = ball.radius + planet.radius + planet_rim_width
+		var min_dist = ball.radius + planet.radius + line_width
 		if dist < min_dist:
 			ball.planet = planet
+	
+	# wrap ball around screen edges
+	if ball.position.x < -ball.radius:
+		ball.position.x += view_size.x + 2 * ball.radius
+		ball.color.a = 0
+		ball.planet = null
+	elif ball.position.x > view_size.x + ball.radius:
+		ball.position.x -= view_size.x + 2 * ball.radius
+		ball.color.a = 0
+		ball.planet = null
+	if ball.position.y < -ball.radius:
+		ball.position.y += view_size.y + 2 * ball.radius
+		ball.color.a = 0
+		ball.planet = null
+	elif ball.position.y > view_size.y + ball.radius:
+		ball.position.y -= view_size.y + 2 * ball.radius
+		ball.color.a = 0
+		ball.planet = null
 	
 	# planet-magnetized ball rolling behavior
 	if ball.planet != null:
 		var planet_to_ball_dir = (ball.position - ball.planet.position).normalized()
-		var min_dist = ball.radius + ball.planet.radius + planet_rim_width
+		var min_dist = ball.radius + ball.planet.radius + line_width/2
 		var tangent = Vector2.from_angle(planet_to_ball_dir.angle() + TAU/4)
 		ball.position = ball.planet.position + min_dist * planet_to_ball_dir
 		ball.speed *= (1 - elements[ball.planet.element].friction) * ball.direction.dot(tangent)
 		ball.direction = tangent
-	
-	# wrap ball around screen edges
-	if ball.position.x <= -ball.radius:
-		ball.position.x += view_size.x + ball.radius * 2
-		ball.planet = null
-		ball.color.a = 0
-	if ball.position.x >= view_size.x + ball.radius:
-		ball.position.x -= view_size.x + 2 * ball.radius
-		ball.planet = null
-		ball.color.a = 0
-	if ball.position.y <= -ball.radius:
-		ball.position.y += ball.radius * 2 + view_size.y
-		ball.planet = null
-		ball.color.a = 0
-	if ball.position.y >= view_size.y + ball.radius:
-		ball.position.y -= ball.radius * 2 + view_size.y
-		ball.planet = null
-		ball.color.a = 0
 	
 	# stars randomly wander
 	for star in stars:
@@ -405,7 +414,7 @@ func _process(delta: float) -> void:
 	# call draw function
 	queue_redraw()
 
-func draw_pattern(position: Vector2, element: Element, radius: float, color: Color, line_width: float = planet_rim_width):
+func draw_pattern(position: Vector2, element: Element, radius: float, color: Color, line_width: float = line_width):
 	for from_point in elements[element].pattern:
 		for to_point in elements[element].pattern[from_point]:
 			var from_point_pos = position + Vector2(
@@ -449,12 +458,12 @@ func _draw() -> void:
 		draw_pattern(planet.position, planet.element, planet.radius * 2/3, planet_color)
 		
 		# planet surface rim
-		draw_circle(planet.position, planet.radius, planet_color, false, planet_rim_width, true)
+		draw_circle(planet.position, planet.radius, planet_color, false, line_width, true)
 	
 	# drag line and dots
 	if draw_drag_line:
 		var dist = click_start_pos.distance_to(click_drag_pos)
-		var ratio = clamp(dist / min(view_size.x, view_size.y), 0, 1)
+		var ratio = clamp(dist / min_view_size, 0, 1)
 		if not fade_drag_line:
 			line_end_pos = ball.position - (click_drag_pos - click_start_pos) / 4
 			drag_color = Color.from_hsv(ratio, 1, 1)
@@ -462,7 +471,7 @@ func _draw() -> void:
 			drag_color.a -= .1
 			if drag_color.a <= 0:
 				draw_drag_line = false
-		draw_line(ball.position, line_end_pos, drag_color, planet_rim_width, true)
+		draw_line(ball.position, line_end_pos, drag_color, line_width * 1.5, true)
 		# big circle
 		draw_circle(line_end_pos, ball.radius, drag_color, true, -1.0, true)
 		draw_circle(line_end_pos, ball.radius/2, drag_color, true, -1.0, true)
