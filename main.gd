@@ -1,17 +1,19 @@
 extends Node2D
 
-@onready var view_size = get_viewport().size
-@onready var min_view_size = min(view_size.x, view_size.y)
+@onready var game_width = ProjectSettings.get_setting("display/window/size/viewport_width")
+@onready var game_height = ProjectSettings.get_setting("display/window/size/viewport_height")
+@onready var min_game_size = min(game_width, game_height)
 
 # friction info
 const high_friction = .2
 const normal_friction = .1
 const low_friction = .01
+const aa = false # anti-alias
 
 # planet info
 const drift_speed = 1
 var planets = []
-@onready var line_width = min_view_size / 2**8
+@onready var line_width = 1 # min_game_size / 2**8
 @onready var total_planets = Element.size()
 
 # star info
@@ -19,14 +21,14 @@ const star_density = 1 / 10000.
 const max_star_flux = 1
 const max_star_speed = 10
 var stars = []
-@onready var total_stars = view_size.x * view_size.y * star_density
+@onready var total_stars = game_width * game_height * star_density
 @onready var min_star_radius = line_width / 2**2
 @onready var max_star_radius = line_width
 
 # ball info
 @onready var normal_ball_radius = line_width * 2**2
 @onready var ball = {
-	'position': Vector2(view_size.x / 2, -2 * normal_ball_radius),
+	'position': Vector2(game_width / 2, -2 * normal_ball_radius),
 	'speed': 0, 
 	'direction': Vector2.ZERO,
 	'radius': normal_ball_radius,
@@ -247,7 +249,7 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 		'row': -7,
 		'column': -1,
 		'order': 11,
-		'color': Color(.67,.67,.67),
+		'color': Color(.5,.5,.5),
 		'color_name': 'gray',
 		'symbol': 'moon',
 		'aspect': 'presence',
@@ -267,7 +269,7 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 		'row': -7,
 		'column': 1,
 		'order': 12,
-		'color': Color(.33,.33,.33),
+		'color': Color(.1,.1,.1),
 		'color_name': 'black',
 		'symbol': 'eye',
 		'aspect': 'desire',
@@ -298,7 +300,7 @@ func _ready() -> void:
 	# generate stars
 	for i in range(total_stars):
 		stars.append({
-			'position': Vector2(randi_range(0, view_size.x - 1), randi_range(0, view_size.y - 1)),
+			'position': Vector2(randi_range(0, game_width - 1), randi_range(0, game_height - 1)),
 			'speed': randf_range(0, max_star_speed),
 			'direction': randf_range(0,TAU),
 			'radius': randf_range(min_star_radius, max_star_radius),
@@ -308,9 +310,9 @@ func _ready() -> void:
 	# generate planets
 	for i in range(total_planets):
 		var element = Element.values()[i]
-		var planet_radius = min_view_size / 2**3
-		var planet_x = view_size.x / 2 + elements[element].column * planet_radius * 2
-		var planet_y = elements[element].row * view_size.y / 6 - planet_radius - line_width - normal_ball_radius * 2
+		var planet_radius = min_game_size / 2**3
+		var planet_x = game_width / 2 + elements[element].column * planet_radius * 2
+		var planet_y = elements[element].row * game_height / 6 - planet_radius - line_width - normal_ball_radius * 2
 		planets.append({
 			'position': Vector2(planet_x, planet_y),
 			'radius': planet_radius,
@@ -345,8 +347,8 @@ func _process(delta: float) -> void:
 	# planets: drift downward, wrap around screen
 	for planet in planets:
 		planet.position.y += drift_speed
-		if planet.position.y > view_size.y + planet.radius + line_width + 2 * normal_ball_radius:
-			planet.position.y -= view_size.y * 8/6
+		if planet.position.y > game_height + planet.radius + line_width + 2 * normal_ball_radius:
+			planet.position.y -= game_height * 8/6
 		
 		# transfer ownership if ball collision
 		var dist = ball.position.distance_to(planet.position)
@@ -356,19 +358,19 @@ func _process(delta: float) -> void:
 	
 	# wrap ball around screen edges
 	if ball.position.x < -ball.radius:
-		ball.position.x += view_size.x + 2 * ball.radius
+		ball.position.x += game_width + 2 * ball.radius
 		ball.color.a = 0
 		ball.planet = null
-	elif ball.position.x > view_size.x + ball.radius:
-		ball.position.x -= view_size.x + 2 * ball.radius
+	elif ball.position.x > game_width + ball.radius:
+		ball.position.x -= game_width + 2 * ball.radius
 		ball.color.a = 0
 		ball.planet = null
 	if ball.position.y < -ball.radius:
-		ball.position.y += view_size.y + 2 * ball.radius
+		ball.position.y += game_height + 2 * ball.radius
 		ball.color.a = 0
 		ball.planet = null
-	elif ball.position.y > view_size.y + ball.radius:
-		ball.position.y -= view_size.y + 2 * ball.radius
+	elif ball.position.y > game_height + ball.radius:
+		ball.position.y -= game_height + 2 * ball.radius
 		ball.color.a = 0
 		ball.planet = null
 	
@@ -401,15 +403,15 @@ func _process(delta: float) -> void:
 		
 		# wrap x
 		if star.position.x < 0 - star.radius:
-			star.position.x += view_size.x + star.radius * 2
-		elif star.position.x >= view_size.x + star.radius:
-			star.position.x -= view_size.x + star.radius * 2
+			star.position.x += game_width + star.radius * 2
+		elif star.position.x >= game_width + star.radius:
+			star.position.x -= game_width + star.radius * 2
 		
 		# wrap y
 		if star.position.y < 0 - star.radius:
-			star.position.y += view_size.y + star.radius * 2
-		elif star.position.y >= view_size.y + star.radius:
-			star.position.y -= view_size.y + star.radius * 2
+			star.position.y += game_height + star.radius * 2
+		elif star.position.y >= game_height + star.radius:
+			star.position.y -= game_height + star.radius * 2
 	
 	# call draw function
 	queue_redraw()
@@ -422,26 +424,26 @@ func draw_pattern(position: Vector2, element: Element, radius: float, color: Col
 				radius * -sin(from_point * TAU/8)
 			)
 			if str(to_point) == 'C':
-				draw_line(from_point_pos, position, color, line_width, true)
+				draw_line(from_point_pos, position, color, line_width, aa)
 			else:
 				var to_point_pos = position + Vector2(
 					radius * cos(to_point * TAU/8),
 					radius * -sin(to_point * TAU/8)
 				)
-				draw_line(from_point_pos, to_point_pos, color, line_width, true)
+				draw_line(from_point_pos, to_point_pos, color, line_width, aa)
 
 func _draw() -> void:
 	for star in stars:
 		# lux contingent on radius, affects color
 		var lux = (star.radius - min_star_radius) / (max_star_radius - min_star_radius)
 		var color = Color(lux, lux, lux)
-		draw_circle(star.position, star.radius, color, true, -1.0, true)
+		draw_circle(star.position, star.radius, color, true, -1.0, aa)
 	
 	for planet in planets:
 		var planet_color = elements[planet.element].color
 		
 		# hide stars behind planet
-		draw_circle(planet.position, planet.radius, Color(0,0,0), true)
+		draw_circle(planet.position, planet.radius, Color(0,0,0), true, -1.0, aa)
 		
 		# smaller corner patterns
 		for from_point in elements[planet.element].pattern:
@@ -458,12 +460,12 @@ func _draw() -> void:
 		draw_pattern(planet.position, planet.element, planet.radius * 2/3, planet_color)
 		
 		# planet surface rim
-		draw_circle(planet.position, planet.radius, planet_color, false, line_width, true)
+		draw_circle(planet.position, planet.radius, planet_color, false, line_width, aa)
 	
 	# drag line and dots
 	if draw_drag_line:
 		var dist = click_start_pos.distance_to(click_drag_pos)
-		var ratio = clamp(dist / min_view_size, 0, 1)
+		var ratio = clamp(dist / min_game_size, 0, 1)
 		if not fade_drag_line:
 			line_end_pos = ball.position - (click_drag_pos - click_start_pos) / 4
 			drag_color = Color.from_hsv(ratio, 1, 1)
@@ -471,15 +473,18 @@ func _draw() -> void:
 			drag_color.a -= .1
 			if drag_color.a <= 0:
 				draw_drag_line = false
-		draw_line(ball.position, line_end_pos, drag_color, line_width * 1.5, true)
+		draw_line(ball.position, line_end_pos, drag_color, line_width * 1.5, aa)
 		# big circle
-		draw_circle(line_end_pos, ball.radius, drag_color, true, -1.0, true)
-		draw_circle(line_end_pos, ball.radius/2, drag_color, true, -1.0, true)
+		draw_circle(line_end_pos, ball.radius, drag_color, true, -1.0, aa)
+		draw_circle(line_end_pos, ball.radius/2, drag_color, true, -1.0, aa)
 		# small circle
-		draw_circle(ball.position + (ball.position - line_end_pos) / 2, ball.radius / 2, drag_color, true, -1.0, true)
+		draw_circle(ball.position + (ball.position - line_end_pos) / 2, ball.radius / 2, drag_color, true, -1.0, aa)
 
 	# ball
-	draw_circle(ball.position, ball.radius, ball.color, true, -1.0, true)
+	draw_circle(ball.position, ball.radius, ball.color, true, -1.0, aa)
 	ball.color.v = clamp(ball.color.v + .01, 0, 1)
 	ball.color.s = clamp(ball.color.s - .01, 0, 1)
 	ball.color.a = clamp(ball.color.a + .1, 0, 1)
+
+	# game border
+	draw_rect(Rect2(1, 1, game_width - 1, game_height - 1), Color(.1,.1,.1), false, 1, false)

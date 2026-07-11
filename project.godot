@@ -13,11 +13,14 @@ config_version=5
 config/name="Space Golf 2D"
 run/main_scene="uid://c5x2lxptuktpy"
 config/features=PackedStringArray("4.4", "Mobile")
+run/max_fps=60
 
 [display]
 
-window/size/viewport_width=1080
-window/size/viewport_height=2400
+window/size/viewport_width=360
+window/size/viewport_height=640
+window/stretch/mode="viewport"
+window/stretch/scale_mode="integer"
 
 [editor_plugins]
 
