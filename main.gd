@@ -1,32 +1,38 @@
 extends Node2D
 
+# window info
 @onready var game_width = ProjectSettings.get_setting("display/window/size/viewport_width")
 @onready var game_height = ProjectSettings.get_setting("display/window/size/viewport_height")
 @onready var min_game_size = min(game_width, game_height)
+
+# background info
+@onready var background_points = PackedVector2Array([
+	Vector2(0,0),
+	Vector2(game_width,0),
+	Vector2(game_width,game_height),
+	Vector2(0,game_height)
+])
+@onready var background_colors = PackedColorArray([
+	Color(0,0,0),
+	Color(0,0,0),
+	Color(.25,0,1),
+	Color(.25,0,1)
+])
 
 # friction info
 const high_friction = .2
 const normal_friction = .1
 const low_friction = .01
-const aa = false # anti-alias
+const anti_alias = true
 
 # planet info
 const drift_speed = 1
 var planets = []
-@onready var line_width = 1 # min_game_size / 2**8
+@onready var line_width = .5
 @onready var total_planets = Element.size()
 
-# star info
-const star_density = 1 / 10000.
-const max_star_flux = 1
-const max_star_speed = 10
-var stars = []
-@onready var total_stars = game_width * game_height * star_density
-@onready var min_star_radius = line_width / 2**2
-@onready var max_star_radius = line_width
-
 # ball info
-@onready var normal_ball_radius = line_width * 2**2
+@onready var normal_ball_radius = 4
 @onready var ball = {
 	'position': Vector2(game_width / 2, -2 * normal_ball_radius),
 	'speed': 0, 
@@ -269,7 +275,7 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 		'row': -7,
 		'column': 1,
 		'order': 12,
-		'color': Color(.1,.1,.1),
+		'color': Color(0,0,0),
 		'color_name': 'black',
 		'symbol': 'eye',
 		'aspect': 'desire',
@@ -296,16 +302,6 @@ func order_up(element: Element) -> Element:
 func _ready() -> void:
 	# nearest neighbor texture scaling
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	
-	# generate stars
-	for i in range(total_stars):
-		stars.append({
-			'position': Vector2(randi_range(0, game_width - 1), randi_range(0, game_height - 1)),
-			'speed': randf_range(0, max_star_speed),
-			'direction': randf_range(0,TAU),
-			'radius': randf_range(min_star_radius, max_star_radius),
-			'flux_dir': [-1,1].pick_random()
-		})
 	
 	# generate planets
 	for i in range(total_planets):
@@ -335,7 +331,7 @@ func _input(event: InputEvent) -> void:
 					ball.color = elements[ball.planet.element].color
 				ball.planet = null
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	# for draw function's drag line
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		click_drag_pos = get_global_mouse_position()
@@ -377,90 +373,57 @@ func _process(delta: float) -> void:
 	# planet-magnetized ball rolling behavior
 	if ball.planet != null:
 		var planet_to_ball_dir = (ball.position - ball.planet.position).normalized()
-		var min_dist = ball.radius + ball.planet.radius + line_width/2
+		var min_dist = ball.radius + ball.planet.radius + line_width*2
 		var tangent = Vector2.from_angle(planet_to_ball_dir.angle() + TAU/4)
 		ball.position = ball.planet.position + min_dist * planet_to_ball_dir
 		ball.speed *= (1 - elements[ball.planet.element].friction) * ball.direction.dot(tangent)
 		ball.direction = tangent
 	
-	# stars randomly wander
-	for star in stars:
-		var velocity = Vector2(
-			star.speed * cos(star.direction),
-			star.speed * -sin(star.direction))
-		star.position += velocity * delta
-		
-		# fluxuate radius and direction
-		var nudge = star.flux_dir * max_star_flux * (star.speed / max_star_speed) * delta
-		star.radius += nudge
-		star.direction += nudge
-		if star.radius < min_star_radius:
-			star.radius = min_star_radius
-			star.flux_dir *= -1
-		elif star.radius > max_star_radius:
-			star.radius = max_star_radius
-			star.flux_dir *= -1 
-		
-		# wrap x
-		if star.position.x < 0 - star.radius:
-			star.position.x += game_width + star.radius * 2
-		elif star.position.x >= game_width + star.radius:
-			star.position.x -= game_width + star.radius * 2
-		
-		# wrap y
-		if star.position.y < 0 - star.radius:
-			star.position.y += game_height + star.radius * 2
-		elif star.position.y >= game_height + star.radius:
-			star.position.y -= game_height + star.radius * 2
-	
 	# call draw function
 	queue_redraw()
 
-func draw_pattern(position: Vector2, element: Element, radius: float, color: Color, line_width: float = line_width):
+func draw_pattern(pattern_position: Vector2, element: Element, radius: float, color: Color, pattern_line_width: float = line_width):
 	for from_point in elements[element].pattern:
 		for to_point in elements[element].pattern[from_point]:
-			var from_point_pos = position + Vector2(
+			var from_point_pos = pattern_position + Vector2(
 				radius * cos(from_point * TAU/8),
 				radius * -sin(from_point * TAU/8)
 			)
 			if str(to_point) == 'C':
-				draw_line(from_point_pos, position, color, line_width, aa)
+				draw_line(from_point_pos, pattern_position, color, pattern_line_width, anti_alias)
 			else:
-				var to_point_pos = position + Vector2(
+				var to_point_pos = pattern_position + Vector2(
 					radius * cos(to_point * TAU/8),
 					radius * -sin(to_point * TAU/8)
 				)
-				draw_line(from_point_pos, to_point_pos, color, line_width, aa)
+				draw_line(from_point_pos, to_point_pos, color, pattern_line_width, anti_alias)
 
 func _draw() -> void:
-	for star in stars:
-		# lux contingent on radius, affects color
-		var lux = (star.radius - min_star_radius) / (max_star_radius - min_star_radius)
-		var color = Color(lux, lux, lux)
-		draw_circle(star.position, star.radius, color, true, -1.0, aa)
+	#draw_texture_rect(background, Rect2(0,0,game_width,game_height), false)
+	draw_polygon(background_points, background_colors)
 	
 	for planet in planets:
 		var planet_color = elements[planet.element].color
 		
-		# hide stars behind planet
-		draw_circle(planet.position, planet.radius, Color(0,0,0), true, -1.0, aa)
-		
 		# smaller corner patterns
 		for from_point in elements[planet.element].pattern:
+			var pattern_color = planet_color
+			pattern_color.a = .25
+			
 			if str(from_point) == 'C':
-				draw_pattern(planet.position, planet.element, planet.radius * 1/3, planet_color.darkened(.5))
+				draw_pattern(planet.position, planet.element, planet.radius * 1/3, pattern_color)
 			else:
 				var from_point_pos = planet.position + Vector2(
 					planet.radius * 2/3 * cos(from_point * TAU/8),
 					planet.radius * 2/3 * -sin(from_point * TAU/8)
 				)
-				draw_pattern(from_point_pos, planet.element, planet.radius * 1/3, planet_color.darkened(.5))
+				draw_pattern(from_point_pos, planet.element, planet.radius * 1/3, pattern_color)
 		
 		# largest central pattern
 		draw_pattern(planet.position, planet.element, planet.radius * 2/3, planet_color)
 		
 		# planet surface rim
-		draw_circle(planet.position, planet.radius, planet_color, false, line_width, aa)
+		draw_circle(planet.position, planet.radius, planet_color, false, line_width, anti_alias)
 	
 	# drag line and dots
 	if draw_drag_line:
@@ -473,18 +436,12 @@ func _draw() -> void:
 			drag_color.a -= .1
 			if drag_color.a <= 0:
 				draw_drag_line = false
-		draw_line(ball.position, line_end_pos, drag_color, line_width * 1.5, aa)
-		# big circle
-		draw_circle(line_end_pos, ball.radius, drag_color, true, -1.0, aa)
-		draw_circle(line_end_pos, ball.radius/2, drag_color, true, -1.0, aa)
-		# small circle
-		draw_circle(ball.position + (ball.position - line_end_pos) / 2, ball.radius / 2, drag_color, true, -1.0, aa)
+		draw_line(ball.position, line_end_pos, drag_color, line_width, anti_alias)
+		draw_circle(line_end_pos, ball.radius, drag_color, false, line_width, anti_alias)
+		draw_circle(ball.position + (ball.position - line_end_pos) / 2, ball.radius / 2, drag_color, false, line_width, anti_alias)
 
 	# ball
-	draw_circle(ball.position, ball.radius, ball.color, true, -1.0, aa)
+	draw_circle(ball.position, ball.radius, ball.color, true, -1.0, anti_alias)
 	ball.color.v = clamp(ball.color.v + .01, 0, 1)
 	ball.color.s = clamp(ball.color.s - .01, 0, 1)
 	ball.color.a = clamp(ball.color.a + .1, 0, 1)
-
-	# game border
-	draw_rect(Rect2(1, 1, game_width - 1, game_height - 1), Color(.1,.1,.1), false, 1, false)
