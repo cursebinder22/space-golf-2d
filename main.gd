@@ -15,8 +15,8 @@ extends Node2D
 @onready var background_colors = PackedColorArray([
 	Color(0,0,0),
 	Color(0,0,0),
-	Color(.25,0,1),
-	Color(.25,0,1)
+	Color(.1,.1,.1),
+	Color(.1,.1,.1)
 ])
 
 # friction info
