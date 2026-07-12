@@ -293,8 +293,43 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 	}
 }
 
-# font info
-const chars = {
+# character info
+const characters = {
+	'0': [
+		[[0,3],[0,1],[1,0],[2,1],[2,3],[1,4],[0,3]],
+		[[1,2]]
+	],
+	'1': [
+		[[0,1],[1,0],[1,4]],
+		[[0,4],[1,3],[2,4]]
+	],
+	'2': [
+		[[1,1],[0,1],[1,0],[2,1],[0,3],[0,4],[2,4],[2,3]]
+	],
+	'3': [
+		[[1,1],[0,1],[1,0],[2,1],[1,2],[0,2]],
+		[[1,2],[2,3],[1,4],[0,3],[1,3]]
+	],
+	'4': [
+		[[0,1],[1,0],[1,2],[3,2]],
+		[[3,1],[2,0],[2,4],[3,3]]
+	],
+	'5': [
+		[[1,0],[2,1],[0,1],[0,2],[1,2],[2,3],[1,4],[0,3],[1,3]]
+	],
+	'6': [
+		[[2,1],[3,1],[2,0],[1,1],[1,3],[2,4],[3,3],[2,2],[0,4]]
+	],
+	'7': [
+		[[1,0],[0,1],[3,1],[0,4]]
+	],
+	'8': [
+		[[1,2],[0,1],[1,0],[2,1],[0,3],[1,4],[2,3],[1,2]],
+		[[0,2],[2,2]]
+	],
+	'9': [
+		[[2,1],[1,0],[0,1],[1,2],[2,1],[2,4],[3,3]]
+	],
 	'A': [
 		[[0,3],[1,4],[1,0],[2,0],[2,4],[3,3]],
 		[[0,0],[1,1],[2,1],[3,0]]
@@ -374,8 +409,8 @@ const chars = {
 		[[3,0],[2,1],[1,0],[0,1],[1,1]]
 	],
 	'j': [
-		[[3,3],[2,2],[2,5],[1,6],[0,5],[1,5]],
-		[[2,1]]
+		[[2,3],[1,2],[1,5],[0,6],[-1,5],[0,5]],
+		[[1,1]]
 	],
 	'K': [
 		[[0,1],[1,0],[1,4],[0,3]],
@@ -502,51 +537,76 @@ const chars = {
 		[[1,1],[0,2],[2,2],[0,4],[2,4],[2,3]]
 	],
 	'?': [
-		[[1,1],[0,1],[1,0],[2,1],[1,2],[1,3],[2,2]],
-		[[1,4]]
+		[[2,1],[1,1],[2,0],[3,1],[2,2],[2,3],[3,2]],
+		[[2,4]]
 	],
 	'!': [
-		[[0,3],[0,1],[1,0],[1,2],[0,3]],
-		[[0,4]]
+		[[1,3],[1,1],[2,0],[2,2],[1,3]],
+		[[1,4]]
 	],
 	'-': [
 		[[0,2],[2,2]]
 	],
 	'.': [
-		[[0,4]]
+		[[1,4]]
 	],
 	',': [
-		[[0,4],[1,5],[0,6]]
+		[[1,4],[1,5],[0,6]]
 	],
 	';': [
-		[[0,4],[1,5],[0,6]],
-		[[0,3]]
+		[[1,4],[1,5],[0,6]],
+		[[1,2]]
 	],
 	':': [
-		[[0,2]],
-		[[0,3]]
+		[[1,1]],
+		[[1,3]]
 	],
 	'(': [
 		[[1,0],[0,1],[0,3],[1,4]]
 	],
 	')': [
 		[[0,0],[1,1],[1,3],[0,4]]
+	],
+	"'": [
+		[[1,-1],[1,0],[0,1]]
 	]
 }
 
-#func draw_text(text: String, top_left: Vector2, height: int, color: Color):
-	#var char_i = 0
-	#for char in text:
-		#var lines = chars.char
-		#for line in lines:
-			#if len(line) == 1: # draw dot, not line
-				#var dot_pos = top_left + line[0] * height
-				#dot_pos.x += char_i * height/2
-				#draw_circle(dot_pos, 2, color, false, line_width, anti_alias)
-			#else: # draw line
-				#for point in line:
-					# TODO
-		#char_i += 1
+func draw_text(text: String, top_left: Vector2, height: float = 16, color: Color = Color.WHITE):
+	var cell_size = height/4
+	var new_line = height * 1.5
+	var next_char_x = top_left.x
+	for character in text:
+		if character == '\\':
+			next_char_x = top_left.x
+			top_left.y += new_line
+		elif character == ' ':
+			next_char_x += height/2
+		else:
+			var max_x = next_char_x
+			var lines = characters[character]
+			for line in lines:
+				if len(line) == 1: # draw dot (not line)
+					var dot_pos = Vector2(next_char_x, top_left.y)
+					dot_pos.x += line[0][0] * cell_size
+					dot_pos.y += line[0][1] * cell_size
+					draw_circle(dot_pos, 2, color, false, line_width, anti_alias)
+					max_x = max(max_x, dot_pos.x)
+				else: # draw line
+					for pair_i in len(line) - 1:
+						var p1 = Vector2(next_char_x, top_left.y) 
+						p1.x += line[pair_i][0] * cell_size
+						p1.y += line[pair_i][1] * cell_size
+						var p2 = Vector2(next_char_x, top_left.y)
+						p2.x += line[pair_i + 1][0] * cell_size
+						p2.y += line[pair_i + 1][1] * cell_size
+						draw_line(p1, p2, color, line_width, anti_alias)
+						max_x = max(max_x, p1.x, p2.x)
+			if max_x < game_width - height:
+				next_char_x = max_x
+			else:
+				next_char_x = top_left.x
+				top_left.y += new_line
 
 # get next rank up of element
 func order_up(element: Element) -> Element:
@@ -655,7 +715,6 @@ func draw_pattern(pattern_position: Vector2, element: Element, radius: float, co
 				draw_line(from_point_pos, to_point_pos, color, pattern_line_width, anti_alias)
 
 func _draw() -> void:
-	#draw_texture_rect(background, Rect2(0,0,game_width,game_height), false)
 	draw_polygon(background_points, background_colors)
 	
 	for planet in planets:
