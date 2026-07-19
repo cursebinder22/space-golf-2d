@@ -16,7 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="Space Golf 2D"
 run/main_scene="uid://c5x2lxptuktpy"
-config/features=PackedStringArray("4.7", "Mobile")
+config/features=PackedStringArray("4.4", "Mobile")
 run/max_fps=60
 
 [display]
