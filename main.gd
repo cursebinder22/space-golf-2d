@@ -26,7 +26,7 @@ const low_friction = .01
 const anti_alias = true
 
 # planet info
-const drift_speed = 1
+const drift_speed = .1
 var planets = []
 @onready var line_width = .5
 @onready var total_planets = Element.size()
@@ -34,7 +34,7 @@ var planets = []
 # ball info
 @onready var normal_ball_radius = 4
 @onready var ball = {
-	'position': Vector2(game_width / 2, -2 * normal_ball_radius),
+	'position': Vector2(game_width/2, game_height/2),
 	'speed': 0, 
 	'direction': Vector2.ZERO,
 	'radius': normal_ball_radius,
@@ -292,6 +292,26 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 		}
 	}
 }
+
+# flag info
+var flag = {
+	'planet': null,
+	'form': [
+		[[0,0], [0,-4], Color.WHITE],
+		[[0,-4], [0,-6], Color.RED],
+		[[0,-6], [2,-5], Color.RED],
+		[[2,-5], [0,-4], Color.RED]
+	]
+}
+
+func draw_flag(scale: float = 5):
+	var base = flag.planet.position
+	base.y -= flag.planet.radius
+	for line in flag.form:
+		var p1 = base + Vector2(line[0][0] * scale, line[0][1] * scale)
+		var p2 = base + Vector2(line[1][0] * scale, line[1][1] * scale)
+		var c = line[2]
+		draw_line(p1, p2, c, line_width, anti_alias)
 
 # character info
 const characters = {
@@ -622,14 +642,18 @@ func _ready() -> void:
 	# generate planets
 	for i in range(total_planets):
 		var element = Element.values()[i]
-		var planet_radius = min_game_size / 2**3
-		var planet_x = game_width / 2 + elements[element].column * planet_radius * 2
-		var planet_y = elements[element].row * game_height / 6 - planet_radius - line_width - normal_ball_radius * 2
+		var planet_radius = randf_range(20, 40)
+		var planet_x = randf_range(0, game_width)
+		var planet_y = randf_range(0, game_height)
 		planets.append({
 			'position': Vector2(planet_x, planet_y),
+			'direction': Vector2.RIGHT.rotated(randf_range(0, TAU)),
 			'radius': planet_radius,
 			'element': element
 		})
+		for planet in planets:
+			if planet.element == Element.EARTH:
+				flag.planet = planet
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -654,35 +678,71 @@ func _process(_delta: float) -> void:
 	
 	# basic ball movement (before collision & wrapping)
 	ball.position += ball.speed * ball.direction
-	ball.position.y += drift_speed # keeps ball from sliding behind planet motion
+	if ball.planet != null:
+		ball.position += drift_speed * ball.planet.direction # keeps ball from sliding behind planet motion
 	
-	# planets: drift downward, wrap around screen
+	# planets: drift within boundaries
 	for planet in planets:
-		planet.position.y += drift_speed
-		if planet.position.y > game_height + planet.radius + line_width + 2 * normal_ball_radius:
-			planet.position.y -= game_height * 8/6
+		planet.position += drift_speed * planet.direction
+		for other_planet in planets:
+			var dist = planet.position.distance_to(other_planet.position)
+			var min_dist = planet.radius + other_planet.radius + line_width * 2
+			
+			if other_planet != planet and dist < min_dist:
+				planet.position = other_planet.position + min_dist * other_planet.position.direction_to(planet.position)
+				planet.direction = other_planet.position.direction_to(planet.position)
+				
+				other_planet.position = planet.position + min_dist * planet.position.direction_to(other_planet.position)
+				other_planet.direction = planet.position.direction_to(other_planet.position)
+			
+		if planet.position.x < planet.radius:
+			planet.direction.x *= -1
+			planet.position.x = planet.radius
+			
+		elif planet.position.x > game_width - planet.radius:
+			planet.direction.x *= -1
+			planet.position.x = game_width - planet.radius
+		
+		if planet.position.y < planet.radius:
+			planet.direction.y *= -1
+			planet.position.y = planet.radius
+			
+		elif planet.position.y > game_height - planet.radius:
+			planet.direction.y *= -1
+			planet.position.y = game_height - planet.radius
 		
 		# transfer ownership if ball collision
 		var dist = ball.position.distance_to(planet.position)
 		var min_dist = ball.radius + planet.radius + line_width
 		if dist < min_dist:
 			ball.planet = planet
+			ball.color = elements[ball.planet.element].color
 	
-	# wrap ball around screen edges
-	if ball.position.x < -ball.radius:
-		ball.position.x += game_width + 2 * ball.radius
-		ball.color.a = 0
-		ball.planet = null
-	elif ball.position.x > game_width + ball.radius:
-		ball.position.x -= game_width + 2 * ball.radius
-		ball.color.a = 0
-		ball.planet = null
-	if ball.position.y < -ball.radius:
-		ball.position.y += game_height + 2 * ball.radius
-		ball.color.a = 0
-		ball.planet = null
-	elif ball.position.y > game_height + ball.radius:
-		ball.position.y -= game_height + 2 * ball.radius
+	# ball impact on screen edges
+	var impact = false
+	
+	if ball.position.x < ball.radius:
+		ball.position.x = ball.radius
+		ball.direction.x *= -1
+		impact = true
+		
+	elif ball.position.x > game_width - ball.radius:
+		ball.position.x = game_width - ball.radius
+		ball.direction.x *= -1
+		impact = true
+	
+	if ball.position.y < ball.radius:
+		ball.position.y = ball.radius
+		ball.direction.y *= -1
+		impact = true
+		
+	elif ball.position.y > game_height - ball.radius:
+		ball.position.y = game_height - ball.radius
+		ball.direction.y *= -1
+		impact = true
+		
+	if impact:
+		ball.speed /= 2
 		ball.color.a = 0
 		ball.planet = null
 	
@@ -691,11 +751,21 @@ func _process(_delta: float) -> void:
 		var planet_to_ball_dir = (ball.position - ball.planet.position).normalized()
 		var min_dist = ball.radius + ball.planet.radius + line_width*2
 		var tangent = Vector2.from_angle(planet_to_ball_dir.angle() + TAU/4)
+		
 		ball.position = ball.planet.position + min_dist * planet_to_ball_dir
 		ball.speed *= (1 - elements[ball.planet.element].friction) * ball.direction.dot(tangent)
 		ball.direction = tangent
 	
-	# call draw function
+	# change flag position when ball is nearby
+	var flag_base = flag.planet.position
+	flag_base.y -= flag.planet.radius
+	var dist = flag_base.distance_to(ball.position)
+	if dist < ball.radius * 2:
+		var next_element = order_up(flag.planet.element)
+		for planet in planets:
+			if planet.element == next_element:
+				flag.planet = planet
+	
 	queue_redraw()
 
 func draw_pattern(pattern_position: Vector2, element: Element, radius: float, color: Color, pattern_line_width: float = line_width):
@@ -719,27 +789,15 @@ func _draw() -> void:
 	
 	for planet in planets:
 		var planet_color = elements[planet.element].color
-		
-		# smaller corner patterns
-		for from_point in elements[planet.element].pattern:
-			var pattern_color = planet_color
-			pattern_color.a = .25
-			
-			if str(from_point) == 'C':
-				draw_pattern(planet.position, planet.element, planet.radius * 1/3, pattern_color)
-			else:
-				var from_point_pos = planet.position + Vector2(
-					planet.radius * 2/3 * cos(from_point * TAU/8),
-					planet.radius * 2/3 * -sin(from_point * TAU/8)
-				)
-				draw_pattern(from_point_pos, planet.element, planet.radius * 1/3, pattern_color)
+		if planet_color == Color.BLACK:
+			draw_circle(planet.position, planet.radius, Color(.1,.1,.1), true, line_width, anti_alias)
 		
 		# largest central pattern
 		draw_pattern(planet.position, planet.element, planet.radius * 2/3, planet_color)
 		
 		# planet surface rim
 		draw_circle(planet.position, planet.radius, planet_color, false, line_width, anti_alias)
-	
+		
 	# drag line and dots
 	if draw_drag_line:
 		var dist = click_start_pos.distance_to(click_drag_pos)
@@ -754,9 +812,11 @@ func _draw() -> void:
 		draw_line(ball.position, line_end_pos, drag_color, line_width, anti_alias)
 		draw_circle(line_end_pos, ball.radius, drag_color, false, line_width, anti_alias)
 		draw_circle(ball.position + (ball.position - line_end_pos) / 2, ball.radius / 2, drag_color, false, line_width, anti_alias)
-
+	
 	# ball
 	draw_circle(ball.position, ball.radius, ball.color, true, -1.0, anti_alias)
 	ball.color.v = clamp(ball.color.v + .01, 0, 1)
 	ball.color.s = clamp(ball.color.s - .01, 0, 1)
 	ball.color.a = clamp(ball.color.a + .1, 0, 1)
+
+	draw_flag()
