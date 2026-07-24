@@ -4,6 +4,12 @@ extends Node2D
 @onready var game_width = ProjectSettings.get_setting("display/window/size/viewport_width")
 @onready var game_height = ProjectSettings.get_setting("display/window/size/viewport_height")
 @onready var min_game_size = min(game_width, game_height)
+@onready var max_drag_dist = min_game_size / 2
+
+# score info
+var shots_this_hole: int = 0
+const par: int = 3
+var score: int = 0
 
 # friction info
 const high_friction = .2
@@ -27,7 +33,8 @@ const anti_alias = true
 	'direction': Vector2.ZERO,
 	'radius': 2,
 	'planet': null,
-	'color': Color.WHITE
+	'color': Color.WHITE,
+	'power': 0
 }
 
 # aimer info
@@ -581,7 +588,10 @@ const characters = {
 	]
 }
 
-func draw_text(text: String, top_left: Vector2, height: float = 16, color: Color = Color.WHITE):
+const shadow: Color = Color(.1,.1,.1)
+const default_text_height: int = 12
+
+func draw_text(text: String, top_left: Vector2, height: float = default_text_height, color: Color = shadow):
 	var cell_size = height/4
 	var new_line = height * 1.5
 	var next_char_x = top_left.x
@@ -599,7 +609,7 @@ func draw_text(text: String, top_left: Vector2, height: float = 16, color: Color
 					var dot_pos = Vector2(next_char_x, top_left.y)
 					dot_pos.x += line[0][0] * cell_size
 					dot_pos.y += line[0][1] * cell_size
-					draw_circle(dot_pos, 2, color, false, line_width, anti_alias)
+					draw_circle(dot_pos, height / default_text_height, color, false, line_width, anti_alias)
 					max_x = max(max_x, dot_pos.x)
 				else: # draw line
 					for pair_i in len(line) - 1:
@@ -624,6 +634,9 @@ func order_up(element: Element) -> Element:
 			return e
 	return Element.EARTH
 
+@onready var min_planet_radius: float = min_game_size / 15
+@onready var max_planet_radius: float = min_game_size / 6
+
 func _ready() -> void:	
 	# nearest neighbor texture scaling
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -631,19 +644,34 @@ func _ready() -> void:
 	# generate planets
 	for i in range(total_planets):
 		var element = Element.values()[i]
-		var planet_radius = game_width/10 * randf_range(.5, 1.5)
+		var planet_radius = randf_range(min_planet_radius, max_planet_radius)
 		var planet_x = randf_range(0, game_width)
 		var planet_y = randf_range(0, game_height)
 		planets.append({
 			'position': Vector2(planet_x, planet_y),
 			'direction': Vector2.RIGHT.rotated(randf_range(0, TAU)),
 			'radius': planet_radius,
+			'radius_speed': [-1,1].pick_random() * .01,
 			'element': element
 		})
 		for planet in planets:
 			if planet.element == Element.EARTH:
 				flag.planet = planet
 
+func wait_false(seconds: float) -> bool:
+	await get_tree().create_timer(seconds).timeout
+	return false
+	
+# score info
+var draw_shots_text: bool = false
+var draw_score_text: bool = false
+var shots_text_pos: Vector2 = Vector2.ZERO
+var score_text_pos: Vector2 = Vector2.ZERO
+const text_rise_speed: float = .1
+
+var recharge_circle_radius = 0
+
+# TODO: only allow aiming when recharge circle is less than ball radius
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
@@ -651,18 +679,45 @@ func _input(event: InputEvent) -> void:
 				click_start_pos = event.position
 				draw_drag_line = true
 				fade_drag_line = false
-				ball.speed = 0
 			else: # release click
-				line_width *= 2
 				click_end_pos = event.position
+				
+				# shot text and wait
+				shots_this_hole += 1
+				shots_text_pos.y = ball.position.y
+				draw_shots_text = true
+				draw_shots_text = await wait_false(1) # will delay below code in this function only
+				
+				# visual effects
+				line_width *= 2
 				fade_drag_line = true
-				ball.direction = (-click_end_pos + click_start_pos).normalized()
-				ball.speed = click_end_pos.distance_to(click_start_pos) / 50
+				
+				# launch ball
+				var click_dist = click_end_pos.distance_to(click_start_pos)
+				click_dist = clamp(click_dist, 0, max_drag_dist)
+				ball.speed = click_dist / max_drag_dist
+				ball.direction = (click_start_pos - click_end_pos).normalized()
+				
+				# recharge circle
+				recharge_circle_radius = click_dist / 2
+				
+				# ball color and planet
 				if ball.planet != null:
 					ball.color = elements[ball.planet.element].color
 				ball.planet = null
 
 func _process(_delta: float) -> void:
+	# shrink recharge circle
+	if recharge_circle_radius > 0:
+		recharge_circle_radius -= .1
+	
+	# upward rising text
+	if draw_shots_text:
+		shots_text_pos.y -= text_rise_speed
+	if draw_score_text:
+		score_text_pos.y -= text_rise_speed
+	
+	# anti-bloom over time
 	line_width = lerp(line_width, true_line_width, .1)
 	
 	# for draw function's drag line
@@ -674,12 +729,21 @@ func _process(_delta: float) -> void:
 	if ball.planet != null:
 		ball.position += drift_speed * ball.planet.direction # keeps ball from sliding behind planet motion
 	
-	# planets: drift within boundaries
 	for planet in planets:
+		# planets: grow or shrink size
+		planet.radius += planet.radius_speed
+		if planet.radius <= min_planet_radius:
+			planet.radius = min_planet_radius
+			planet.radius_speed = abs(planet.radius_speed)
+		elif planet.radius >= max_planet_radius:
+			planet.radius = max_planet_radius
+			planet.radius_speed = -abs(planet.radius_speed)
+		
+		# planets: drift within boundaries
 		planet.position += drift_speed * planet.direction
 		for other_planet in planets:
 			var pp_dist = planet.position.distance_to(other_planet.position)
-			var min_pp_dist = planet.radius + other_planet.radius + ball.radius * 2
+			var min_pp_dist = planet.radius + other_planet.radius + ball.radius * 2 + .1
 			
 			if other_planet != planet and pp_dist < min_pp_dist:
 				planet.position = other_planet.position + min_pp_dist * other_planet.position.direction_to(planet.position)
@@ -688,54 +752,56 @@ func _process(_delta: float) -> void:
 				other_planet.position = planet.position + min_pp_dist * planet.position.direction_to(other_planet.position)
 				other_planet.direction = planet.position.direction_to(other_planet.position)
 			
-		if planet.position.x < planet.radius + 2 * ball.radius:
-			planet.direction.x *= -1
-			planet.position.x = planet.radius + 2 * ball.radius
+		if planet.position.x < planet.radius + 2 * ball.radius + .1:
+			planet.direction.x = abs(planet.direction.x)
+			planet.position.x = planet.radius + 2 * ball.radius + .1
 			
-		elif planet.position.x > game_width - planet.radius - 2 * ball.radius:
-			planet.direction.x *= -1
-			planet.position.x = game_width - planet.radius - 2 * ball.radius
+		elif planet.position.x > game_width - planet.radius - 2 * ball.radius - .1:
+			planet.direction.x *= -abs(planet.direction.x)
+			planet.position.x = game_width - planet.radius - 2 * ball.radius - .1
 		
-		if planet.position.y < planet.radius + 2 * ball.radius:
-			planet.direction.y *= -1
-			planet.position.y = planet.radius + 2 * ball.radius
+		if planet.position.y < planet.radius + 2 * ball.radius + .1:
+			planet.direction.y = abs(planet.direction.y)
+			planet.position.y = planet.radius + 2 * ball.radius + .1
 			
-		elif planet.position.y > game_height - planet.radius - 2 * ball.radius:
-			planet.direction.y *= -1
-			planet.position.y = game_height - planet.radius - 2 * ball.radius
+		elif planet.position.y > game_height - planet.radius - 2 * ball.radius - .1:
+			planet.direction.y = -abs(planet.direction.y)
+			planet.position.y = game_height - planet.radius - 2 * ball.radius - .1
 		
 		# transfer ownership if ball collision
-		var bp_dist = ball.position.distance_to(planet.position)
-		var min_bp_dist = ball.radius + planet.radius
-		if bp_dist < min_bp_dist:
-			ball.planet = planet
+		if ball.planet != planet:
+			var bp_dist = ball.position.distance_to(planet.position)
+			var min_bp_dist = ball.radius + planet.radius
+			if bp_dist < min_bp_dist:
+				ball.planet = planet
 	
 	# ball impact on screen edges
 	var impact = false
 	
 	if ball.position.x < ball.radius:
 		ball.position.x = ball.radius
-		ball.direction.x *= -1
+		ball.direction.x = abs(ball.direction.x)
 		impact = true
 		
 	elif ball.position.x > game_width - ball.radius:
 		ball.position.x = game_width - ball.radius
-		ball.direction.x *= -1
+		ball.direction.x = -abs(ball.direction.x)
 		impact = true
 	
 	if ball.position.y < ball.radius:
 		ball.position.y = ball.radius
-		ball.direction.y *= -1
+		ball.direction.y = abs(ball.direction.y)
 		impact = true
 		
 	elif ball.position.y > game_height - ball.radius:
 		ball.position.y = game_height - ball.radius
-		ball.direction.y *= -1
+		ball.direction.y *= -abs(ball.direction.y)
 		impact = true
 		
 	if impact:
-		ball.speed /= 2
+		ball.speed *= .5
 		ball.color.a = 0
+		line_width *= .5
 		ball.planet = null
 	
 	# planet-magnetized ball rolling behavior
@@ -756,7 +822,14 @@ func _process(_delta: float) -> void:
 		var next_element = order_up(flag.planet.element)
 		for planet in planets:
 			if planet.element == next_element:
+				# move flag to next planet and adjust score
 				flag.planet = planet
+				score += shots_this_hole - par
+				shots_this_hole = 0
+				line_width *= 2
+				score_text_pos.y = ball.position.y
+				draw_score_text = true
+				draw_score_text = await wait_false(2)
 	
 	queue_redraw()
 
@@ -777,13 +850,19 @@ func draw_pattern(pattern_position: Vector2, element: Element, radius: float, co
 				draw_line(from_point_pos, to_point_pos, color, pattern_line_width, anti_alias)
 
 func _draw() -> void:
+	if draw_shots_text:
+		draw_text(' Shots this hole: ' + str(shots_this_hole), shots_text_pos)
+	
+	if draw_score_text:
+		draw_text(' SCORE: ' + str(score), score_text_pos, 24)
+	
 	var border = Rect2(Vector2.ZERO, Vector2(game_width, game_height))
-	draw_rect(border, Color(.1,.1,.1), false, line_width, anti_alias)
+	draw_rect(border, shadow, false, line_width, anti_alias)
 	
 	for planet in planets:
 		var planet_color = elements[planet.element].color
 		if planet_color == Color.BLACK:
-			draw_circle(planet.position, planet.radius, Color(.1,.1,.1), true, -1.0, anti_alias)
+			draw_circle(planet.position, planet.radius, shadow, true, -1.0, anti_alias)
 		
 		# largest central pattern
 		draw_pattern(planet.position, planet.element, planet.radius * 2/3, planet_color)
@@ -793,11 +872,14 @@ func _draw() -> void:
 		
 	# drag line and dots
 	if draw_drag_line:
-		var dist = click_start_pos.distance_to(click_drag_pos)
-		var ratio = clamp(dist / min_game_size, 0, 1)
+		var drag_angle = (click_drag_pos - click_start_pos).normalized()
+		var drag_dist = click_start_pos.distance_to(click_drag_pos)
+		drag_dist = clamp(drag_dist, 0, max_drag_dist)
+		
 		if not fade_drag_line:
-			line_end_pos = ball.position - (click_drag_pos - click_start_pos) / 4
-			drag_color = Color.from_hsv(ratio, 1, 1)
+			line_end_pos = ball.position - drag_dist / 2 * drag_angle
+			var hue = clamp(drag_dist / max_drag_dist, 0, 1)
+			drag_color = Color.from_hsv(hue, 1, 1)
 		else:
 			drag_color.a -= .1
 			if drag_color.a <= 0:
@@ -806,10 +888,16 @@ func _draw() -> void:
 		draw_circle(line_end_pos, ball.radius, drag_color, false, line_width, anti_alias)
 		draw_circle(ball.position + (ball.position - line_end_pos) / 2, ball.radius / 2, drag_color, false, line_width, anti_alias)
 	
+	# recharge circle
+	var recharge_color = ball.color
+	recharge_color.a *= .1
+	draw_circle(ball.position, recharge_circle_radius, recharge_color, false, line_width, anti_alias)
+	
 	# ball
 	draw_circle(ball.position, ball.radius, ball.color, true, -1.0, anti_alias)
 	ball.color.v = clamp(ball.color.v + .01, 0, 1)
 	ball.color.s = clamp(ball.color.s - .01, 0, 1)
 	ball.color.a = clamp(ball.color.a + .1, 0, 1)
+	ball.power = ball.color.a * ball.color.s
 
 	draw_flag()
