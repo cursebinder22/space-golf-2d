@@ -19,6 +19,14 @@ run/main_scene="uid://c5x2lxptuktpy"
 config/features=PackedStringArray("4.7", "Mobile")
 run/max_fps=60
 
+[autoload]
+
+FrictionTypes="*uid://cbivk0bi28ooo"
+FlagData="*uid://duf8nyd5x0o6r"
+EarthData="*uid://o7ddwjyle4vm"
+FireData="*uid://bdyvl5ph3vbi5"
+EnergyData="*uid://davll5hi26uwi"
+
 [display]
 
 window/size/viewport_width=144

@@ -1,117 +1,45 @@
 extends Node2D
 
-# window info
-@onready var game_width = ProjectSettings.get_setting("display/window/size/viewport_width")
-@onready var game_height = ProjectSettings.get_setting("display/window/size/viewport_height")
-@onready var min_game_size = min(game_width, game_height)
-@onready var max_drag_dist = min_game_size / 2
+# game size
+@onready var game_width: float = ProjectSettings.get_setting("display/window/size/viewport_width")
+@onready var game_height: float = ProjectSettings.get_setting("display/window/size/viewport_height")
+@onready var min_game_size: float = min(game_width, game_height)
 
-# score info
-var shots_this_hole: int = 0
+# score
 const par: int = 3
+var shots_this_hole: int = 0
 var score: int = 0
 
-# friction info
-const high_friction = .2
-const normal_friction = .1
-const low_friction = .01
+# planets
+const drift_speed: float = .01
+var planets: Array = []
+@onready var total_planets: int = Element.size()
 
-# planet info
-const drift_speed = .01
-var planets = []
-@onready var total_planets = Element.size()
+# click pos
+var click_start_pos: Vector2 = Vector2.ZERO
+var click_drag_pos: Vector2 = Vector2.ZERO
+var click_end_pos: Vector2 = Vector2.ZERO
 
-# meta
-var true_line_width = 1.0
-var line_width = true_line_width
-const anti_alias = true
+# draw args
+const anti_alias: bool = true
+var true_line_width: float = 1
+var line_width: float = true_line_width
 
-# ball info
-@onready var ball = {
-	'position': Vector2(game_width/2, game_height/2),
-	'speed': 0, 
-	'direction': Vector2.ZERO,
-	'radius': 2,
-	'planet': null,
-	'color': Color.WHITE,
-	'power': 0
-}
+# drag line
+var draw_drag_line: bool = false
+var fade_drag_line: bool = false
+@onready var max_drag_dist: float = min_game_size / 2
+var drag_line_end_pos: Vector2 = Vector2.ZERO
+var drag_color: Color = Color(0,0,0,0)
+var drag_dist: float = 0
 
-# aimer info
-var click_start_pos: Vector2
-var click_end_pos: Vector2
-var click_drag_pos: Vector2
-var draw_drag_line = false
-var fade_drag_line = false
-var line_end_pos: Vector2
-var drag_color: Color
-
-# element info
 enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, MIGHT, SIGHT}
-@onready var elements = {
-	Element.EARTH: {
-		'friction': low_friction,
-		'row': 0,
-		'column': 0,
-		'order': 1,
-		'color': Color(1,0,0),
-		'color_name': 'red',
-		'symbol': 'volcano',
-		'aspect': 'rage',
-		'realm': 'hell',
-		'pattern': {
-			0: [1],
-			1: [2],
-			2: [3,'C'],
-			3: [4],
-			4: [],
-			5: [6,7,'C'],
-			6: [7,'C'],
-			7: ['C'],
-			'C': []
-		}
-	},
-	Element.FIRE: {
-		'friction': low_friction,
-		'row': -1,
-		'column': -1,
-		'order': 2,
-		'color': Color(1,.5,0),
-		'color_name': 'orange',
-		'symbol': 'torch',
-		'aspect': 'fear',
-		'realm': 'chaos',
-		'pattern': {
-			0: [5,7],
-			1: [5,7],
-			2: [5,7],
-			3: [5,7],
-			4: [5,7],
-			5: [],
-			7: []
-		}
-	},
-	Element.ENERGY: {
-		'friction': low_friction,
-		'row': -1,
-		'column': 1,
-		'order': 3,
-		'color': Color(1,1,0),
-		'color_name': 'yellow',
-		'symbol': 'spark',
-		'aspect': 'thrill',
-		'realm': 'power',
-		'pattern': {
-			0: [4,6],
-			1: [5,6],
-			2: [4,5],
-			4: [],
-			5: [],
-			6: []
-		}
-	},
+@onready var element_data = {
+	Element.EARTH: EarthData,
+	Element.FIRE: FireData,
+	Element.ENERGY: EnergyData,
 	Element.NATURE: {
-		'friction': low_friction,
+		'friction': FrictionTypes.low,
 		'row': -2,
 		'column': 0,
 		'order': 4,
@@ -131,7 +59,7 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 		}
 	},
 	Element.AIR: {
-		'friction': low_friction,
+		'friction': FrictionTypes.low,
 		'row': -3,
 		'column': -1,
 		'order': 5,
@@ -152,7 +80,7 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 		}
 	},
 	Element.ICE: {
-		'friction': low_friction,
+		'friction': FrictionTypes.low,
 		'row': -3,
 		'column': 1,
 		'order': 6,
@@ -170,7 +98,7 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 		}
 	},
 	Element.WATER: {
-		'friction': low_friction,
+		'friction': FrictionTypes.low,
 		'row': -4,
 		'column': 0,
 		'order': 7,
@@ -187,7 +115,7 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 		}
 	},
 	Element.MAGIC: {
-		'friction': low_friction,
+		'friction': FrictionTypes.low,
 		'row': -5,
 		'column': -1,
 		'order': 8,
@@ -206,7 +134,7 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 		}
 	},
 	Element.LOVE: {
-		'friction': low_friction,
+		'friction': FrictionTypes.low,
 		'row': -5,
 		'column': 1,
 		'order': 9,
@@ -225,7 +153,7 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 		}
 	},
 	Element.LIGHT: {
-		'friction': low_friction,
+		'friction': FrictionTypes.low,
 		'row': -6,
 		'column': 0,
 		'order': 10,
@@ -246,7 +174,7 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 		}
 	},
 	Element.MIGHT: {
-		'friction': low_friction,
+		'friction': FrictionTypes.low,
 		'row': -7,
 		'column': -1,
 		'order': 11,
@@ -266,7 +194,7 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 		}
 	},
 	Element.SIGHT: {
-		'friction': low_friction,
+		'friction': FrictionTypes.low,
 		'row': -7,
 		'column': 1,
 		'order': 12,
@@ -288,28 +216,21 @@ enum Element {EARTH, FIRE, ENERGY, NATURE, AIR, ICE, WATER, MAGIC, LOVE, LIGHT, 
 	}
 }
 
-# flag info
-var flag = {
+@onready var ball = {
+	'position': Vector2(game_width/2, game_height/2),
+	'speed': 0.0, 
+	'direction': Vector2.ZERO,
+	'radius': 2.0,
 	'planet': null,
-	'form': [
-		[[0,0], [0,-4], Color.WHITE],
-		[[0,-4], [0,-6], Color.RED],
-		[[0,-6], [2,-5], Color.RED],
-		[[2,-5], [0,-4], Color.RED]
-	]
+	'color': Color(1,1,1),
+	'power': 0.0
 }
 
-func draw_flag():
-	var draw_scale = 2
-	var base = flag.planet.position
-	base.y -= flag.planet.radius
-	for line in flag.form:
-		var p1 = base + Vector2(line[0][0] * draw_scale, line[0][1] * draw_scale)
-		var p2 = base + Vector2(line[1][0] * draw_scale, line[1][1] * draw_scale)
-		var c = line[2]
-		draw_line(p1, p2, c, line_width, anti_alias)
+var flag = {
+	'planet': null,
+	'form': FlagData.form
+}
 
-# character info
 const characters = {
 	'0': [
 		[[0,3],[0,1],[1,0],[2,1],[2,3],[1,4],[0,3]],
@@ -588,8 +509,20 @@ const characters = {
 	]
 }
 
-const shadow: Color = Color(.1,.1,.1)
+const shadow: Color = Color(1,1,1,.1) # very transparent white, looks dark gray on black
 const default_text_height: int = 12
+
+func draw_flag():
+	var draw_scale: float = 2.0
+	var base: Vector2 = flag.planet.position
+	base.y -= flag.planet.radius
+	
+	for line in flag.form:
+		var p1: Vector2 = base + Vector2(line[0][0] * draw_scale, line[0][1] * draw_scale)
+		var p2: Vector2 = base + Vector2(line[1][0] * draw_scale, line[1][1] * draw_scale)
+		var c: Color = line[2]
+		
+		draw_line(p1, p2, c, line_width, anti_alias)
 
 func draw_text(text: String, top_left: Vector2, height: float = default_text_height, color: Color = shadow):
 	var cell_size = height/4
@@ -630,12 +563,15 @@ func draw_text(text: String, top_left: Vector2, height: float = default_text_hei
 # get next rank up of element
 func order_up(element: Element) -> Element:
 	for e in Element.values():
-		if elements[element].order + 1 == elements[e].order:
+		if element_data[element].order + 1 == element_data[e].order:
 			return e
 	return Element.EARTH
 
 @onready var min_planet_radius: float = min_game_size / 15
 @onready var max_planet_radius: float = min_game_size / 6
+
+@onready var launch_seconds: float = 1
+@onready var launch_timer: Timer = Timer.new()
 
 func _ready() -> void:	
 	# nearest neighbor texture scaling
@@ -657,36 +593,35 @@ func _ready() -> void:
 		for planet in planets:
 			if planet.element == Element.EARTH:
 				flag.planet = planet
+				
+	# configure launch timer
+	add_child(launch_timer)
+	launch_timer.wait_time = launch_seconds
+	launch_timer.autostart = false
+	launch_timer.one_shot = true
 
-func wait_false(seconds: float) -> bool:
+func wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout
-	return false
-	
-# score info
-var draw_shots_text: bool = false
-var draw_score_text: bool = false
-var shots_text_pos: Vector2 = Vector2.ZERO
-var score_text_pos: Vector2 = Vector2.ZERO
-const text_rise_speed: float = .1
 
-var recharge_circle_radius = 0
+@onready var cancel: bool = false
 
-# TODO: only allow aiming when recharge circle is less than ball radius
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			if event.pressed and launch_timer.is_stopped():
+				cancel = true
+				fade_drag_line = true
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
+				cancel = false
 				click_start_pos = event.position
 				draw_drag_line = true
 				fade_drag_line = false
-			else: # release click
+			elif not cancel: # release click
 				click_end_pos = event.position
-				
-				# shot text and wait
 				shots_this_hole += 1
-				shots_text_pos.y = ball.position.y
-				draw_shots_text = true
-				draw_shots_text = await wait_false(1) # will delay below code in this function only
+				launch_timer.start()
+				await launch_timer.timeout
 				
 				# visual effects
 				line_width *= 2
@@ -698,27 +633,14 @@ func _input(event: InputEvent) -> void:
 				ball.speed = click_dist / max_drag_dist
 				ball.direction = (click_start_pos - click_end_pos).normalized()
 				
-				# recharge circle
-				recharge_circle_radius = click_dist / 2
-				
 				# ball color and planet
 				if ball.planet != null:
-					ball.color = elements[ball.planet.element].color
+					ball.color = element_data[ball.planet.element].color
 				ball.planet = null
 
-func _process(_delta: float) -> void:
-	# shrink recharge circle
-	if recharge_circle_radius > 0:
-		recharge_circle_radius -= .1
-	
-	# upward rising text
-	if draw_shots_text:
-		shots_text_pos.y -= text_rise_speed
-	if draw_score_text:
-		score_text_pos.y -= text_rise_speed
-	
+func _process(_delta: float) -> void:	
 	# anti-bloom over time
-	line_width = lerp(line_width, true_line_width, .1)
+	line_width = lerp(line_width, true_line_width, .01)
 	
 	# for draw function's drag line
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -811,7 +733,7 @@ func _process(_delta: float) -> void:
 		var tangent = Vector2.from_angle(planet_to_ball_dir.angle() + TAU/4)
 		
 		ball.position = ball.planet.position + min_dist * planet_to_ball_dir
-		ball.speed *= (1 - elements[ball.planet.element].friction) * ball.direction.dot(tangent)
+		ball.speed *= (1 - element_data[ball.planet.element].friction) * ball.direction.dot(tangent)
 		ball.direction = tangent
 	
 	# change flag position when ball is nearby
@@ -827,15 +749,12 @@ func _process(_delta: float) -> void:
 				score += shots_this_hole - par
 				shots_this_hole = 0
 				line_width *= 2
-				score_text_pos.y = ball.position.y
-				draw_score_text = true
-				draw_score_text = await wait_false(2)
 	
 	queue_redraw()
 
 func draw_pattern(pattern_position: Vector2, element: Element, radius: float, color: Color, pattern_line_width: float = line_width):
-	for from_point in elements[element].pattern:
-		for to_point in elements[element].pattern[from_point]:
+	for from_point in element_data[element].pattern:
+		for to_point in element_data[element].pattern[from_point]:
 			var from_point_pos = pattern_position + Vector2(
 				radius * cos(from_point * TAU/8),
 				radius * -sin(from_point * TAU/8)
@@ -849,18 +768,12 @@ func draw_pattern(pattern_position: Vector2, element: Element, radius: float, co
 				)
 				draw_line(from_point_pos, to_point_pos, color, pattern_line_width, anti_alias)
 
-func _draw() -> void:
-	if draw_shots_text:
-		draw_text(' Shots this hole: ' + str(shots_this_hole), shots_text_pos)
-	
-	if draw_score_text:
-		draw_text(' SCORE: ' + str(score), score_text_pos, 24)
-	
+func _draw() -> void:	
 	var border = Rect2(Vector2.ZERO, Vector2(game_width, game_height))
 	draw_rect(border, shadow, false, line_width, anti_alias)
 	
 	for planet in planets:
-		var planet_color = elements[planet.element].color
+		var planet_color = element_data[planet.element].color
 		if planet_color == Color.BLACK:
 			draw_circle(planet.position, planet.radius, shadow, true, -1.0, anti_alias)
 		
@@ -873,31 +786,29 @@ func _draw() -> void:
 	# drag line and dots
 	if draw_drag_line:
 		var drag_angle = (click_drag_pos - click_start_pos).normalized()
-		var drag_dist = click_start_pos.distance_to(click_drag_pos)
+		drag_dist = click_start_pos.distance_to(click_drag_pos)
 		drag_dist = clamp(drag_dist, 0, max_drag_dist)
 		
 		if not fade_drag_line:
-			line_end_pos = ball.position - drag_dist / 2 * drag_angle
-			var hue = clamp(drag_dist / max_drag_dist, 0, 1)
-			drag_color = Color.from_hsv(hue, 1, 1)
+			drag_line_end_pos = ball.position - drag_dist / 2 * drag_angle
+			drag_color = shadow
 		else:
-			drag_color.a -= .1
+			drag_color.a -= .001
 			if drag_color.a <= 0:
 				draw_drag_line = false
-		draw_line(ball.position, line_end_pos, drag_color, line_width, anti_alias)
-		draw_circle(line_end_pos, ball.radius, drag_color, false, line_width, anti_alias)
-		draw_circle(ball.position + (ball.position - line_end_pos) / 2, ball.radius / 2, drag_color, false, line_width, anti_alias)
+		draw_line(ball.position, drag_line_end_pos, drag_color, line_width, anti_alias)
+		draw_circle(drag_line_end_pos, ball.radius, drag_color, false, line_width, anti_alias)
+		draw_circle(ball.position + (ball.position - drag_line_end_pos) / 2, ball.radius / 2, drag_color, false, line_width, anti_alias)
 	
-	# recharge circle
-	var recharge_color = ball.color
-	recharge_color.a *= .1
-	draw_circle(ball.position, recharge_circle_radius, recharge_color, false, line_width, anti_alias)
+	# launch timer ring
+	var ring_radius = drag_dist/2 * launch_timer.time_left / launch_seconds
+	draw_circle(ball.position, ring_radius, shadow, false, line_width, anti_alias)
 	
 	# ball
 	draw_circle(ball.position, ball.radius, ball.color, true, -1.0, anti_alias)
 	ball.color.v = clamp(ball.color.v + .01, 0, 1)
 	ball.color.s = clamp(ball.color.s - .01, 0, 1)
-	ball.color.a = clamp(ball.color.a + .1, 0, 1)
+	ball.color.a = clamp(ball.color.a + .01, 0, 1)
 	ball.power = ball.color.a * ball.color.s
 
 	draw_flag()
