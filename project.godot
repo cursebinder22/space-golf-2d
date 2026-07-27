@@ -21,11 +21,7 @@ run/max_fps=60
 
 [autoload]
 
-FrictionTypes="*uid://cbivk0bi28ooo"
-FlagData="*uid://duf8nyd5x0o6r"
-EarthData="*uid://o7ddwjyle4vm"
-FireData="*uid://bdyvl5ph3vbi5"
-EnergyData="*uid://davll5hi26uwi"
+Global="*uid://xqkj6ig1npr6"
 
 [display]
 
