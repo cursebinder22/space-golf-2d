@@ -36,11 +36,17 @@ var click_start_pos: Vector2 = Vector2.ZERO
 var click_drag_pos: Vector2 = Vector2.ZERO
 var click_end_pos: Vector2 = Vector2.ZERO
 
-# aesthetic
+# aesthetic, _draw
 const bloom_fade_rate: float = .01
 const anti_alias: bool = true
-const default_text_height: int = 12
+const default_text_height: float = 12.0
 const space = preload("res://space.png")
+var space_alpha: float = 0.0
+var space_mod: Color = Color.TRANSPARENT
+var border: Rect2 = Rect2(Vector2.ZERO, Vector2(Global.game_width, Global.game_height))
+var border_color: Color = Color.TRANSPARENT
+var ring_radius: float = 0.0
+var ring_color: Color = Color.TRANSPARENT
 
 # drag line
 const aim_alpha_factor: float = .25
@@ -48,7 +54,7 @@ const drag_line_fade_speed: float = .01
 var draw_drag_line: bool = false
 var fade_drag_line: bool = false
 var drag_line_end_pos: Vector2 = Vector2.ZERO
-var drag_color: Color = Color(0,0,0,0)
+var drag_color: Color = Color.TRANSPARENT
 var drag_dist: float = 0
 var max_drag_dist: float = Global.min_game_size / 2
 
@@ -267,9 +273,10 @@ func draw_text(text: String, top_left: Vector2, height: float = default_text_hei
 
 func _draw() -> void:
 	# border and background
-	draw_texture(space, Vector2.ZERO)
-	var border: Rect2 = Rect2(Vector2.ZERO, Vector2(Global.game_width, Global.game_height))
-	var border_color: Color = ball.color
+	space_alpha = Global.line_width / Global.true_line_width
+	space_mod = Color(1,1,1,space_alpha)
+	draw_texture(space, Vector2.ZERO, space_mod)
+	border_color = ball.color
 	border_color.a *= aim_alpha_factor
 	draw_rect(border, border_color, false, Global.line_width, anti_alias)
 	
@@ -290,8 +297,8 @@ func _draw() -> void:
 		draw_circle(ball.position + (ball.position - drag_line_end_pos) / 2, ball.radius / 2, drag_color, false, Global.line_width, anti_alias)
 	
 	# launch timer ring
-	var ring_radius: float = drag_dist/2 * launch_timer.time_left / launch_seconds
-	var ring_color: Color = ball.color
+	ring_radius = drag_dist/2 * launch_timer.time_left / launch_seconds
+	ring_color = ball.color
 	ring_color.a *= aim_alpha_factor
 	draw_circle(ball.position, ring_radius, ring_color, false, Global.line_width, anti_alias)
 	
