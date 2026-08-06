@@ -7,7 +7,7 @@ func _init() -> void:
 	color_name = 'white'
 	symbol = 'sun'
 	spirit = 'glory'
-	realm = 'eternity'
+	realm = 'the universe'
 	pattern = {
 		0: [2,6],
 		1: [3,7],

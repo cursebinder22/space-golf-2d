@@ -6,8 +6,8 @@ func _init() -> void:
 	color = Color(.5,0,1)
 	color_name = 'purple'
 	symbol = 'crystal'
-	spirit = 'limerence'
-	realm = 'beauty'
+	spirit = 'beauty'
+	realm = 'the underworld'
 	pattern = {
 		0: [1,4,6],
 		1: [3,'C'],

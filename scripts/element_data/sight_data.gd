@@ -7,7 +7,7 @@ func _init() -> void:
 	color_name = 'black'
 	symbol = 'eye'
 	spirit = 'desire'
-	realm = 'the void'
+	realm = 'humanity'
 	pattern = {
 		0: [3,5],
 		1: [4],

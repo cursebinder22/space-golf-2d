@@ -5,9 +5,9 @@ func _init() -> void:
 	rank = 2
 	color = Color(1,.5,0)
 	color_name = 'orange'
-	symbol = 'blaze'
+	symbol = 'torch'
 	spirit = 'fear'
-	realm = 'destruction'
+	realm = 'apocalypse'
 	pattern = {
 		0: [5,7],
 		1: [5,7],

@@ -6,7 +6,7 @@ func _init() -> void:
 	color = Color(1,.5,1)
 	color_name = 'pink'
 	symbol = 'heart'
-	spirit = 'safety'
+	spirit = 'belonging'
 	realm = 'family'
 	pattern = {
 		0: [1,6],

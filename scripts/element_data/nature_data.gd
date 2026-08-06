@@ -7,7 +7,7 @@ func _init() -> void:
 	color_name = 'green'
 	symbol = 'tree'
 	spirit = 'joy'
-	realm = 'life'
+	realm = 'the forest'
 	pattern = {
 		0: [2,4],
 		2: [4,5,7],

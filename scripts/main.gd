@@ -13,7 +13,7 @@ var score: int = 0
 var flag = Flag.new()
 
 # planets
-const ghost_black: Color = Color(.1,.1,.1,.5)
+const ghost_black: Color = Color(.25,.25,.25,.5)
 var total_planets: int = Global.Element.size()
 var element_data: Dictionary = {
 	Global.Element.NONE: ElementData.new(),
@@ -47,6 +47,7 @@ var border: Rect2 = Rect2(Vector2.ZERO, Vector2(Global.game_width, Global.game_h
 var border_color: Color = Color.TRANSPARENT
 var ring_radius: float = 0.0
 var ring_color: Color = Color.TRANSPARENT
+var score_color = Color.TRANSPARENT
 
 # drag line
 const aim_alpha_factor: float = .25
@@ -121,9 +122,9 @@ func _input(event: InputEvent) -> void:
 				
 			elif not cancel_launch: # else = release click
 				click_end_pos = event.position
-				shots_this_hole += 1
 				launch_timer.start()
 				await launch_timer.timeout
+				shots_this_hole += 1
 				
 				# aesthetic
 				Global.line_width *= 2
@@ -196,6 +197,7 @@ func _process(_delta: float) -> void:
 				score += shots_this_hole - par
 				shots_this_hole = 0
 				Global.line_width *= 2
+				ball.color = element_data[ball.planet.element].color
 	
 	queue_redraw()
 
@@ -227,9 +229,15 @@ func draw_flag():
 	for line: Array in flag.form:
 		var p1: Vector2 = base + Vector2(line[0][0] * draw_scale, line[0][1] * draw_scale)
 		var p2: Vector2 = base + Vector2(line[1][0] * draw_scale, line[1][1] * draw_scale)
-		var c: Color = line[2]
+		var flag_color: Color = line[2]
 		
-		draw_line(p1, p2, c, Global.line_width, anti_alias)
+		if flag_color == Color.TRANSPARENT:
+			var new_color: Color = element_data[flag.planet.element].color
+			if new_color != Color(0,0,0):
+				flag_color = new_color
+			else: flag_color = ghost_black
+		
+		draw_line(p1, p2, flag_color, Global.line_width, anti_alias)
 
 func draw_text(text: String, top_left: Vector2, height: float = default_text_height, color: Color = Color(1,1,1)):
 	var cell_size: float = height/4
@@ -249,7 +257,7 @@ func draw_text(text: String, top_left: Vector2, height: float = default_text_hei
 					var dot_pos: Vector2 = Vector2(next_char_x, top_left.y)
 					dot_pos.x += line[0][0] * cell_size
 					dot_pos.y += line[0][1] * cell_size
-					draw_circle(dot_pos, height / default_text_height, color, false, Global.line_width, anti_alias)
+					draw_circle(dot_pos, height / default_text_height, color, true, Global.line_width, anti_alias)
 					max_x = max(max_x, dot_pos.x)
 				else: # draw line
 					for pair_i: int in len(line) - 1:
@@ -280,6 +288,11 @@ func _draw() -> void:
 	border_color.a *= aim_alpha_factor
 	draw_rect(border, border_color, false, Global.line_width, anti_alias)
 	
+	# score
+	score_color = ball.color
+	score_color.a *= aim_alpha_factor
+	draw_text('Score: ' + str(score) + '\\This hole: ' + str(shots_this_hole) + '\\Par: ' + str(par), Vector2(default_text_height/2, default_text_height/2), default_text_height, score_color)
+	
 	# planet rims, patterns, etc.
 	for planet in Global.planets:
 		var planet_color: Color = element_data[planet.element].color
@@ -294,7 +307,7 @@ func _draw() -> void:
 	if draw_drag_line:
 		draw_line(ball.position, drag_line_end_pos, drag_color, Global.line_width, anti_alias)
 		draw_circle(drag_line_end_pos, ball.radius, drag_color, false, Global.line_width, anti_alias)
-		draw_circle(ball.position + (ball.position - drag_line_end_pos) / 2, ball.radius / 2, drag_color, false, Global.line_width, anti_alias)
+		draw_circle(ball.position + (ball.position - drag_line_end_pos) / 2, ball.radius / 2, drag_color, true, Global.line_width, anti_alias)
 	
 	# launch timer ring
 	ring_radius = drag_dist/2 * launch_timer.time_left / launch_seconds

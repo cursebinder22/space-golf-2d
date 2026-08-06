@@ -6,7 +6,7 @@ func _init() -> void:
 	color = Color(0,1,1)
 	color_name = 'cyan'
 	symbol = 'creature'
-	spirit = 'ecstacy'
+	spirit = 'freedom'
 	realm = 'heaven'
 	pattern = {
 		0: [4,5],

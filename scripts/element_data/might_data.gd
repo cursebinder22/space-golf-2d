@@ -6,8 +6,8 @@ func _init() -> void:
 	color = Color(.5,.5,.5)
 	color_name = 'gray'
 	symbol = 'moon'
-	spirit = 'transience'
-	realm = 'reality'
+	spirit = 'separation'
+	realm = 'the night'
 	pattern = {
 		0: [1,6,7],
 		1: [7],

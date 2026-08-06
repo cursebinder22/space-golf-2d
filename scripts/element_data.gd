@@ -2,15 +2,16 @@ class_name ElementData
 extends Resource
 
 var rank: int = 0
-var color: Color = Color(1,0,1,.25)
-var color_name: String = 'ghost-magenta'
-var symbol: String = 'question mark'
-var spirit: String = 'confusion'
-var realm: String = 'chaos'
+var color: Color = Color('#403020')
+var color_name: String = 'brown'
+var symbol: String = 'poop'
+var spirit: String = 'disgust'
+var realm: String = 'waste'
 var pattern: Dictionary = {
-	0: [1,2,'C'],
-	1: [2,3],
-	2: [3,4],
-	3: [4],
-	6: ['C'],
+	1: [7],
+	2: [6],
+	3: [5],
+	5: [6,7,'C'],
+	6: [7],
+	7: ['C']
 }
