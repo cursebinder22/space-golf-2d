@@ -11,6 +11,7 @@ const par: int = 3
 var shots_this_hole: int = 0
 var score: int = 0
 var flag = Flag.new()
+var hole_text: String = ''
 
 # planets
 const ghost_black: Color = Color(.25,.25,.25,.5)
@@ -40,14 +41,18 @@ var click_end_pos: Vector2 = Vector2.ZERO
 const bloom_fade_rate: float = .01
 const anti_alias: bool = true
 const default_text_height: float = 12.0
+const text_drift_speed: float = 0.1
 const space = preload("res://space.png")
+var draw_launch_text: bool = false
+var launch_text_pos: Vector2 = Vector2.ZERO
+var draw_hole_text: bool = false
+var hole_text_pos: Vector2 = Vector2.ZERO
+var hole_text_color: Color = Color.TRANSPARENT
 var space_alpha: float = 0.0
 var space_mod: Color = Color.TRANSPARENT
 var border: Rect2 = Rect2(Vector2.ZERO, Vector2(Global.game_width, Global.game_height))
 var border_color: Color = Color.TRANSPARENT
 var ring_radius: float = 0.0
-var ring_color: Color = Color.TRANSPARENT
-var score_color = Color.TRANSPARENT
 
 # drag line
 const aim_alpha_factor: float = .25
@@ -97,7 +102,7 @@ func _ready() -> void:
 		if element_data[planet.element].rank == 1:
 			flag.planet = planet
 	
-	# configure launch timer
+	# launch timer
 	add_child(launch_timer)
 	launch_timer.wait_time = launch_seconds
 	launch_timer.autostart = false
@@ -123,7 +128,11 @@ func _input(event: InputEvent) -> void:
 			elif not cancel_launch: # else = release click
 				click_end_pos = event.position
 				launch_timer.start()
+				draw_launch_text = true
+				launch_text_pos = ball.position
+				launch_text_pos.y -= default_text_height
 				await launch_timer.timeout
+				draw_launch_text = false
 				shots_this_hole += 1
 				
 				# aesthetic
@@ -144,6 +153,12 @@ func _input(event: InputEvent) -> void:
 func _process(_delta: float) -> void:
 	# aesthetic
 	Global.line_width = lerp(Global.line_width, Global.true_line_width, bloom_fade_rate)
+	if draw_launch_text:
+		launch_text_pos.y -= text_drift_speed
+	if draw_hole_text:
+		hole_text_pos.x += text_drift_speed
+		if hole_text_pos.x > Global.game_width:
+			draw_hole_text = false
 	
 	# fade ball color
 	ball.color.v = clamp(ball.color.v + .01, 0, 1)
@@ -193,11 +208,17 @@ func _process(_delta: float) -> void:
 		for planet in Global.planets:
 			if planet.element == next_element:
 				# move flag to next planet and adjust score
-				flag.planet = planet
 				score += shots_this_hole - par
-				shots_this_hole = 0
+				hole_text_pos = ball.position
+				hole_text_pos.x = 0
+				hole_text_pos.y -= default_text_height
+				draw_hole_text = true
 				Global.line_width *= 2
+				flag.planet = planet
 				ball.color = element_data[ball.planet.element].color
+				hole_text_color = ball.color
+				hole_text = ' ' + str(shots_this_hole) + ' - ' + str(par) + ': ' + str(score)
+				shots_this_hole = 0
 	
 	queue_redraw()
 
@@ -271,11 +292,12 @@ func draw_text(text: String, top_left: Vector2, height: float = default_text_hei
 						
 						draw_line(p1, p2, color, Global.line_width, anti_alias)
 						max_x = max(max_x, p1.x, p2.x)
-			if max_x < Global.game_width - height:
-				next_char_x = max_x
-			else:
-				next_char_x = top_left.x
-				top_left.y += new_line
+			next_char_x = max_x
+			#if max_x < Global.game_width - height:
+				#next_char_x = max_x
+			#else:
+				#next_char_x = top_left.x
+				#top_left.y += new_line
 
 ##################
 
@@ -287,11 +309,6 @@ func _draw() -> void:
 	border_color = ball.color
 	border_color.a *= aim_alpha_factor
 	draw_rect(border, border_color, false, Global.line_width, anti_alias)
-	
-	# score
-	score_color = ball.color
-	score_color.a *= aim_alpha_factor
-	draw_text('Score: ' + str(score) + '\\This hole: ' + str(shots_this_hole) + '\\Par: ' + str(par), Vector2(default_text_height/2, default_text_height/2), default_text_height, score_color)
 	
 	# planet rims, patterns, etc.
 	for planet in Global.planets:
@@ -311,10 +328,14 @@ func _draw() -> void:
 	
 	# launch timer ring
 	ring_radius = drag_dist/2 * launch_timer.time_left / launch_seconds
-	ring_color = ball.color
-	ring_color.a *= aim_alpha_factor
-	draw_circle(ball.position, ring_radius, ring_color, false, Global.line_width, anti_alias)
+	draw_circle(ball.position, ring_radius, drag_color, false, Global.line_width, anti_alias)
 	
 	# ball and flag
 	draw_circle(ball.position, ball.radius, ball.color, true, -1.0, anti_alias)
 	draw_flag()
+
+	# score
+	if draw_launch_text:
+		draw_text(' ' + str(shots_this_hole + 1), launch_text_pos, default_text_height, border_color)
+	if draw_hole_text:
+		draw_text(hole_text, hole_text_pos, default_text_height, border_color)
