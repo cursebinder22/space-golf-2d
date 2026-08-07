@@ -41,7 +41,7 @@ var click_end_pos: Vector2 = Vector2.ZERO
 const bloom_fade_rate: float = .01
 const anti_alias: bool = true
 const default_text_height: float = 12.0
-const text_drift_speed: float = 0.1
+const text_drift_speed: float = 0.25
 const space = preload("res://space.png")
 var draw_launch_text: bool = false
 var launch_text_pos: Vector2 = Vector2.ZERO
@@ -156,7 +156,7 @@ func _process(_delta: float) -> void:
 	if draw_launch_text:
 		launch_text_pos.y -= text_drift_speed
 	if draw_hole_text:
-		hole_text_pos.x += text_drift_speed
+		hole_text_pos.x += text_drift_speed * 4
 		if hole_text_pos.x > Global.game_width:
 			draw_hole_text = false
 	
