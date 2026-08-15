@@ -44,7 +44,8 @@ func move() -> void:
 	if impact:
 		speed *= .5
 		color.a = 0
-		Global.line_width *= .5
+		Global.line_width = clamp(Global.line_width * .5, 0, Global.max_line_width)
+		Global.par -= 1
 		planet = null
 	
 	# magnetic rolling around planet

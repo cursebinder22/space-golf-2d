@@ -11,6 +11,8 @@ const drift_speed: float = .01
 
 # aesthetic
 const true_line_width: float = 1
+const default_text_height: float = 12.0
+var max_line_width: float = true_line_width * 4
 var line_width: float = true_line_width
 
 # planets
@@ -19,8 +21,10 @@ var min_planet_radius: float = min_game_size / 15
 var max_planet_radius: float = min_game_size / 6
 
 # ball
-const init_ball_radius: float = 2.0
+const init_ball_radius: float = default_text_height / 6
+var par: int = 3
 
+## First element in enum is NONE.
 enum Element {
 	NONE,
 	EARTH, FIRE, ENERGY, NATURE,
@@ -282,7 +286,7 @@ const charset: Dictionary = {
 		[[1,4]],
 	],
 	'-': [
-		[[0,2],[2,2]],
+		[[1,1],[0,2],[3,2],[2,3]],
 	],
 	'=': [
 		[[0,2],[2,2]],

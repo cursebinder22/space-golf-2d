@@ -44,9 +44,12 @@ func move() -> void:
 			direction.x *= -abs(direction.x)
 			position.x = Global.game_width - radius - 2 * Global.init_ball_radius - 1
 		
-		if position.y < radius + 2 * Global.init_ball_radius + 1:
+		if position.y < radius + Global.default_text_height * 2:
 			direction.y = abs(direction.y)
-			position.y = radius + 2 * Global.init_ball_radius + 1
+			position.y = radius + Global.default_text_height * 2
+		#if position.y < radius + 2 * Global.init_ball_radius + 1:
+			#direction.y = abs(direction.y)
+			#position.y = radius + 2 * Global.init_ball_radius + 1
 		elif position.y > Global.game_height - radius - 2 * Global.init_ball_radius - 1:
 			direction.y = -abs(direction.y)
 			position.y = Global.game_height - radius - 2 * Global.init_ball_radius - 1
