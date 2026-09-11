@@ -1,4 +1,4 @@
-To begin, install Godot and open this repo when the editor launches. Click the play button at the top right of the editor to run this project in the Game tab.
+To begin, install Godot and open this repo when the editor launches by clicking the Edit button. Click the play button at the top right of the editor to run this project in the Game tab.
 
 Left click and drag or touch and drag to aim and launch the ball. Roll over the flag to score.
 
