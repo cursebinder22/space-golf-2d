@@ -225,6 +225,7 @@ func _process(_delta: float) -> void:
 				score += shots_this_hole - Global.par
 				if flag.planet.element == Global.Element.SIGHT:
 					Global.par += 1
+					score = 0
 				hole_text_pos = ball.position
 				hole_text_pos.x = Global.default_text_height / 2
 				hole_text_pos.y = clamp(hole_text_pos.y - Global.default_text_height * 1.5, Global.default_text_height * 2, Global.game_height - Global.default_text_height * 1.5)
