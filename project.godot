@@ -29,6 +29,7 @@ window/size/viewport_width=144
 window/size/viewport_height=256
 window/stretch/mode="viewport"
 window/stretch/scale_mode="integer"
+window/handheld/orientation=5
 
 [rendering]
 
