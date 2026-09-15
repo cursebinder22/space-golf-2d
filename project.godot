@@ -18,6 +18,7 @@ config/name="Space Golf 2D"
 run/main_scene="uid://c5x2lxptuktpy"
 config/features=PackedStringArray("4.7", "Mobile")
 run/max_fps=60
+config/icon="uid://beervfres2vlc"
 
 [autoload]
 
