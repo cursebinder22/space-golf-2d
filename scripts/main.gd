@@ -61,7 +61,7 @@ const fade_rate: float = .01
 const anti_alias: bool = true
 
 # space, border
-const space: Resource = preload("res://space.png")
+#const space: Resource = preload("res://space.png")
 var space_alpha: float = 0.0
 var space_mod: Color = Color.TRANSPARENT
 var border: Rect2 = Rect2(Vector2.ZERO, Vector2(Global.game_width, Global.game_height))
@@ -214,9 +214,7 @@ func _process(_delta: float) -> void:
 				ball.planet = planet
 	
 	# change flag position when ball is nearby
-	var flag_base: Vector2 = flag.planet.position
-	flag_base.y -= flag.planet.radius
-	var fb_dist: float = flag_base.distance_to(ball.position)
+	var fb_dist: float = flag.base.distance_to(ball.position)
 	if fb_dist < ball.radius * 1.1: # only works with > 1.0
 		var next_element = rank_up(flag.planet.element)
 		for planet in Global.planets:
@@ -232,11 +230,13 @@ func _process(_delta: float) -> void:
 				draw_hole_text = true
 				Global.line_width = clamp(Global.line_width * 2, 0, Global.max_line_width)
 				flag.planet = planet
+				flag.angle = TAU * randf()
 				ball.color = element_data[ball.planet.element].color
 				hole_text_color = ball.color
 				hole_text = 'Score: ' + str(score) + ' (' + str(shots_this_hole) + ')'
 				shots_this_hole = 0
 	
+	flag.update_base()
 	queue_redraw()
 
 ##################
@@ -261,12 +261,10 @@ func draw_pattern(pattern_position: Vector2, element: Global.Element, radius: fl
 
 func draw_flag():
 	var draw_scale: float = 2.0
-	var base: Vector2 = flag.planet.position
-	base.y -= flag.planet.radius
 	
-	for line: Array in flag.form:
-		var p1: Vector2 = base + Vector2(line[0][0] * draw_scale, line[0][1] * draw_scale)
-		var p2: Vector2 = base + Vector2(line[1][0] * draw_scale, line[1][1] * draw_scale)
+	for line: Array in flag.rotate_form():
+		var p1: Vector2 = flag.base + Vector2(line[0][0] * draw_scale, line[0][1] * draw_scale)
+		var p2: Vector2 = flag.base + Vector2(line[1][0] * draw_scale, line[1][1] * draw_scale)
 		var flag_color: Color = line[2]
 		
 		if flag_color == Color.TRANSPARENT:
@@ -324,13 +322,13 @@ func _draw() -> void:
 	# space
 	space_alpha = Global.line_width / Global.true_line_width
 	space_mod = Color(1,1,1,space_alpha)
-	draw_texture(space, Vector2.ZERO, space_mod)
+	#draw_texture(space, Vector2.ZERO, space_mod)
 	
 	# border
 	if not show_title:
 		border_color = ball.color
 		border_color.a *= aim_alpha_factor
-		draw_rect(border, border_color, false, Global.line_width, anti_alias)
+		#draw_rect(border, border_color, false, Global.line_width, anti_alias)
 	
 	# planet rims, patterns, etc.
 	for planet in Global.planets:
@@ -346,7 +344,7 @@ func _draw() -> void:
 	if draw_drag_line:
 		draw_line(ball.position, drag_line_end_pos, drag_color, Global.line_width, anti_alias)
 		draw_circle(drag_line_end_pos, ball.radius, drag_color, false, Global.line_width, anti_alias)
-		draw_circle(ball.position + (ball.position - drag_line_end_pos) / 2, ball.radius / 2, drag_color, true, -1.0, anti_alias)
+		#draw_circle(ball.position + (ball.position - drag_line_end_pos) / 2, ball.radius / 2, drag_color, true, -1.0, anti_alias)
 	
 	# launch timer ring
 	ring_radius = drag_dist/2 * launch_timer.time_left / launch_seconds
@@ -356,16 +354,27 @@ func _draw() -> void:
 	if not show_title:
 		draw_circle(ball.position, ball.radius, ball.color, true, -1.0, anti_alias)
 		draw_flag()
-		draw_text('Par: ' + str(Global.par), par_text_pos, Global.default_text_height, border_color)
-		if draw_hole_text:
-			hole_text_width = draw_text(hole_text, hole_text_pos, Global.default_text_height, border_color)
+		#draw_text('Par: ' + str(Global.par), par_text_pos, Global.default_text_height, border_color)
+		#if draw_hole_text:
+			#hole_text_width = draw_text(hole_text, hole_text_pos, Global.default_text_height, border_color)
 	else:
 		# title banner
 		draw_rect(title_banner, banner_color, true, -1.0, false)
-		title_width = draw_text('SPACE-GOLF', title_pos)
-		title_pos = Vector2((Global.game_width - title_width) / 2, title_banner.position.y + Global.default_text_height / 2)
+		var amplitude: float = .5
+		var frequency: float = 1
+		var seconds: float = Time.get_ticks_msec() * 0.001
+		var base_x: float = (Global.game_width - title_width) / 2
+		var base_y: float = title_banner.position.y + Global.default_text_height / 2
+		var offset_x: float = cos(seconds * frequency) * amplitude
+		var offset_y: float = sin(seconds * frequency) * amplitude
+		title_pos = Vector2(base_x + offset_x, base_y + offset_y)
+		title_width = draw_text('SPACE GOLF 2D', title_pos)
 		
 		# subtitle
 		draw_rect(subtitle_banner, banner_color, true, -1.0, false)
-		subtitle_width = draw_text('by Spiritware', subtitle_pos, Global.default_text_height / 2)
-		subtitle_pos = Vector2((Global.game_width - subtitle_width) / 2, subtitle_banner.position.y + Global.default_text_height / 2)
+		base_x = (Global.game_width - subtitle_width) / 2
+		base_y = subtitle_banner.position.y + Global.default_text_height / 2
+		offset_x = 2 * cos(seconds * frequency) * amplitude
+		offset_y = 2 * sin(seconds * frequency) * amplitude
+		subtitle_pos = Vector2(base_x - offset_x, base_y - offset_y)
+		subtitle_width = draw_text('Swipe to begin!', subtitle_pos, Global.default_text_height / 2)
