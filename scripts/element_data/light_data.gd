@@ -5,10 +5,10 @@ func _init() -> void:
 	rank = 10
 	color = Color(1,1,1)
 	color_name = 'white'
-	symbol = 'sun'
 	spirit = 'glory'
 	realm = 'the universe'
-	pattern = {
+	symbol_name = 'sun'
+	symbol = {
 		0: [2,6],
 		1: [3,7],
 		2: [4],

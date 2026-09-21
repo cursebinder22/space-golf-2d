@@ -7,6 +7,8 @@ var direction: Vector2 = Vector2.RIGHT.rotated(randf_range(0, TAU))
 var radius: float = 0.0
 var radius_speed: float = [-1,1].pick_random() * .01
 var element: Global.Element = Global.Element.NONE
+var tilt: float = TAU * randf()
+var tilt_speed: float = randf_range(-1,1) * .01
 
 func _init(init_position: Vector2, init_speed: float, init_radius: float, init_element: Global.Element) -> void:
 	position = init_position
@@ -14,7 +16,9 @@ func _init(init_position: Vector2, init_speed: float, init_radius: float, init_e
 	radius = init_radius
 	element = init_element
 
-func tick_radius() -> void:
+func tick() -> void:
+	tilt = fmod(tilt + tilt_speed, TAU)
+	
 	radius += radius_speed
 	if radius <= Global.min_planet_radius:
 		radius = Global.min_planet_radius

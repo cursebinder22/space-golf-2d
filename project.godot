@@ -27,10 +27,10 @@ Global="*uid://xqkj6ig1npr6"
 [display]
 
 window/size/viewport_width=108
-window/size/viewport_height=192
+window/size/viewport_height=240
 window/stretch/mode="viewport"
 window/stretch/scale_mode="integer"
-window/handheld/orientation=5
+window/handheld/orientation=1
 
 [rendering]
 

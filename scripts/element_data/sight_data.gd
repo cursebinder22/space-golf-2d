@@ -3,12 +3,12 @@ extends ElementData
 
 func _init() -> void:
 	rank = 12
-	color = Color(0,0,0)
+	color = Color(1/3.,1/3.,1/3.)
 	color_name = 'black'
-	symbol = 'eye'
 	spirit = 'desire'
 	realm = 'humanity'
-	pattern = {
+	symbol_name = 'eye'
+	symbol = {
 		0: [3,5],
 		1: [4],
 		2: [6],

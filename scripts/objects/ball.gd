@@ -56,4 +56,5 @@ func move() -> void:
 		
 		position = planet.position + min_dist * planet_to_ball_dir
 		speed *= (1 - Global.friction) * direction.dot(tangent)
+		speed -= direction.dot(tangent) * planet.tilt_speed * .1
 		direction = tangent

@@ -1,21 +1,22 @@
 class_name Flag
-extends Node2D
+extends Node
 
 var planet: Planet = null
-var angle: float = TAU * randf()
-var base: Vector2 = Vector2.ZERO
+var position: Vector2 = Vector2.ZERO
+var angle: float = 0
+var lift: float = 0
 const form: Array = [
-	[[0,0], [0,-4], Color(1,1,1)],
-	[[0,-4], [0,-6], Color.TRANSPARENT],
-	[[0,-6], [2,-5], Color.TRANSPARENT],
-	[[2,-5], [0,-4], Color.TRANSPARENT],
+	[[0,0], [4,0], Color(1,1,1)],
+	[[4,0], [6,0], Color.TRANSPARENT],
+	[[6,0], [5,2], Color.TRANSPARENT],
+	[[5,2], [4,0], Color.TRANSPARENT],
 ]
 
-func rotate_form() -> Array:
+func get_rotated_form() -> Array:
 	var rotated_form: Array = []
 	
-	var cos_a: float = cos(angle + TAU/4)
-	var sin_a: float = sin(angle + TAU/4)
+	var cos_a: float = cos(angle)
+	var sin_a: float = -sin(angle)
 	
 	for line: Array in form:
 		var p1: Array = line[0]
@@ -31,8 +32,15 @@ func rotate_form() -> Array:
 		
 	return rotated_form
 
-func update_base() -> void:
+func tick() -> void:
+	lift = lerp(lift, 0., Global.lerp_factor)
+	angle = lerp_angle(angle, TAU/4 + planet.tilt + 20 * planet.tilt_speed, Global.lerp_factor)
+	
 	if planet != null:
-		var base_x: float = planet.position.x + planet.radius * cos(angle)
-		var base_y: float = planet.position.y + planet.radius * sin(angle)
-		base = Vector2(base_x, base_y)
+		var new_x: float = planet.position.x + (lift + planet.radius) * cos(angle)
+		new_x = lerp(position.x, new_x, Global.lerp_factor)
+		
+		var new_y: float = planet.position.y + (lift + planet.radius) * -sin(angle)
+		new_y = lerp(position.y, new_y, Global.lerp_factor)
+		
+		position = Vector2(new_x, new_y)

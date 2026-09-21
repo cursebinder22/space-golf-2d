@@ -8,17 +8,13 @@ var min_game_size: float = min(game_width, game_height)
 # movement
 const friction: float = .01
 const drift_speed: float = .01
+const lerp_factor: float = .1
 
 # aesthetic
 const true_line_width: float = .6
 const default_text_height: float = 12.0
 var max_line_width: float = true_line_width * 4
 var line_width: float = true_line_width
-
-# planets
-var planets: Array = []
-var min_planet_radius: float = min_game_size / 15
-var max_planet_radius: float = min_game_size / 6
 
 # ball
 const init_ball_radius: float = true_line_width * 2.5
@@ -31,6 +27,11 @@ enum Element {
 	AIR, ICE, WATER, MAGIC,
 	LOVE, LIGHT, MIGHT, SIGHT
 }
+
+# planets
+var planets: Array = []
+var max_planet_radius: float = min_game_size / 5
+var min_planet_radius: float = true_line_width * 10
 
 ## Keys are individual characters, values are nested arrays.
 ## Value are structured by continuous lines, as if drawn by hand.

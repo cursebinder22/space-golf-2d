@@ -1,13 +1,13 @@
 extends Node2D
 
 # ball
-const launch_seconds: float = 1
+const max_launch_seconds: float = 1
 var launch_timer: Timer = Timer.new()
 var cancel_launch: bool = false
 var ball: Ball = Ball.new(Vector2(Global.game_width/2, Global.game_height/2))
 
 # aiming
-const aim_alpha_factor: float = .25
+const aim_alpha_factor: float = 1/3.
 var draw_drag_line: bool = false
 var fade_drag_line: bool = false
 var drag_line_end_pos: Vector2 = Vector2.ZERO
@@ -61,17 +61,17 @@ const fade_rate: float = .01
 const anti_alias: bool = true
 
 # space, border
-#const space: Resource = preload("res://space.png")
+const space: Resource = preload("res://space.png")
 var space_alpha: float = 0.0
 var space_mod: Color = Color.TRANSPARENT
-var border: Rect2 = Rect2(Vector2.ZERO, Vector2(Global.game_width, Global.game_height))
-var border_color: Color = Color.TRANSPARENT
+var border: Rect2 = Rect2(0, 0, Global.game_width, Global.game_height)
 
 # title
 const banner_color: Color = Color(0,0,0,1)
 var show_title: bool = true
 var title_width: float = 0.0
 var subtitle_width: float = 0.0
+var subtitle_color: Color = Color.TRANSPARENT
 var title_pos: Vector2 = Vector2.ZERO
 var subtitle_pos: Vector2 = Vector2.ZERO
 var title_banner: Rect2 = Rect2(Vector2(0, Global.game_height / 2 - Global.default_text_height), Vector2(Global.game_width, Global.default_text_height * 2))
@@ -102,9 +102,17 @@ func rank_up(element: Global.Element) -> Global.Element:
 
 func _ready() -> void:
 	# generate planets
+	var planet_sizes: Array = []
+	for i in Global.Element.size() - 1:
+		planet_sizes.append(i)
 	for element_i: int in range(1, total_planets):
 		var planet_element: Global.Element = Global.Element.values()[element_i]
-		var planet_radius: float = randf_range(Global.min_planet_radius, Global.max_planet_radius)
+		
+		var fraction: float = 1 / float(Global.Element.size() - 2)
+		var size_number: int = planet_sizes.pop_at(randi() % planet_sizes.size())
+		var radius_diff: float = (Global.max_planet_radius - Global.min_planet_radius)
+		var planet_radius: float = Global.min_planet_radius + float(size_number) * fraction * radius_diff
+		
 		var planet_x: float = randf_range(0, Global.game_width)
 		var planet_y: float = randf_range(0, Global.game_height)
 		var planet_pos: Vector2 = Vector2(planet_x, planet_y)
@@ -117,7 +125,6 @@ func _ready() -> void:
 	
 	# launch timer
 	add_child(launch_timer)
-	launch_timer.wait_time = launch_seconds
 	launch_timer.autostart = false
 	launch_timer.one_shot = true
 	
@@ -141,16 +148,17 @@ func _input(event: InputEvent) -> void:
 				
 			elif not cancel_launch: # else = release click
 				click_end_pos = event.position
-				launch_timer.start()
 				draw_launch_text = true
 				launch_text_pos = ball.position
 				launch_text_pos.y -= Global.default_text_height
+				launch_timer.wait_time = max_launch_seconds * drag_dist / max_drag_dist
+				launch_timer.start()
 				await launch_timer.timeout
 				draw_launch_text = false
 				shots_this_hole += 1
 				
 				# aesthetic
-				Global.line_width = clamp(Global.line_width * 2, 0, Global.max_line_width)
+				Global.line_width = clamp(Global.line_width * 2 * launch_timer.wait_time / max_launch_seconds, 0, Global.max_line_width)
 				fade_drag_line = true
 				
 				# launch ball
@@ -203,7 +211,7 @@ func _process(_delta: float) -> void:
 	# physics
 	ball.move()
 	for planet in Global.planets:
-		planet.tick_radius()
+		planet.tick()
 		planet.move()
 		
 		# transfer ownership if ball collision
@@ -214,57 +222,62 @@ func _process(_delta: float) -> void:
 				ball.planet = planet
 	
 	# change flag position when ball is nearby
-	var fb_dist: float = flag.base.distance_to(ball.position)
-	if fb_dist < ball.radius * 1.1: # only works with > 1.0
-		var next_element = rank_up(flag.planet.element)
-		for planet in Global.planets:
-			if planet.element == next_element:
-				# move flag to next planet and adjust score
-				score += shots_this_hole - Global.par
-				if flag.planet.element == Global.Element.SIGHT:
-					Global.par += 1
-					score = 0
-				hole_text_pos = ball.position
-				hole_text_pos.x = Global.default_text_height / 2
-				hole_text_pos.y = clamp(hole_text_pos.y - Global.default_text_height * 1.5, Global.default_text_height * 2, Global.game_height - Global.default_text_height * 1.5)
-				draw_hole_text = true
-				Global.line_width = clamp(Global.line_width * 2, 0, Global.max_line_width)
-				flag.planet = planet
-				flag.angle = TAU * randf()
-				ball.color = element_data[ball.planet.element].color
-				hole_text_color = ball.color
-				hole_text = 'Score: ' + str(score) + ' (' + str(shots_this_hole) + ')'
-				shots_this_hole = 0
+	flag.tick()
+	if ball.planet == flag.planet and ball.planet != null:
+		var ball_angle: float = ball.planet.position.angle_to_point(ball.position)
+		var flag_angle: float = flag.planet.position.angle_to_point(flag.position)
+		var angle_btwn: float = abs(angle_difference(ball_angle, flag_angle))
+		if angle_btwn < TAU/4:
+			flag.lift += .5
+		if angle_btwn < TAU/64:
+			var next_element = rank_up(flag.planet.element)
+			for planet in Global.planets:
+				if planet.element == next_element:
+					# move flag to next planet and adjust score
+					score += shots_this_hole - Global.par
+					if flag.planet.element == Global.Element.SIGHT:
+						Global.par += 1
+						score = 0
+					hole_text_pos = ball.position
+					hole_text_pos.x = Global.default_text_height / 2
+					hole_text_pos.y = clamp(hole_text_pos.y - Global.default_text_height * 1.5, Global.default_text_height * 2, Global.game_height - Global.default_text_height * 1.5)
+					draw_hole_text = true
+					Global.line_width = clamp(Global.line_width * 2, 0, Global.max_line_width)
+					flag.planet = planet
+					if ball.planet != null:
+						ball.color = element_data[ball.planet.element].color
+					hole_text_color = ball.color
+					hole_text = 'Score: ' + str(score) + ' (' + str(shots_this_hole) + ')'
+					shots_this_hole = 0
 	
-	flag.update_base()
 	queue_redraw()
 
 ##################
 ## DRAW HELPERS ##
 ##################
 
-func draw_pattern(pattern_position: Vector2, element: Global.Element, radius: float, color: Color, pattern_line_width: float = Global.line_width):
-	for from_point: Variant in element_data[element].pattern:
-		for to_point: Variant in element_data[element].pattern[from_point]:
+func draw_symbol(pattern_position: Vector2, element: Global.Element, radius: float, color: Color, pattern_line_width: float = Global.line_width, tilt: float = 0.0):
+	for from_point: Variant in element_data[element].symbol:
+		for to_point: Variant in element_data[element].symbol[from_point]:
 			var from_point_pos: Vector2 = pattern_position + Vector2(
-				radius * cos(from_point * TAU/8),
-				radius * -sin(from_point * TAU/8)
+				radius * cos(tilt + TAU/8 * from_point),
+				radius * -sin(tilt + TAU/8 * from_point)
 			)
 			if str(to_point) == 'C':
 				draw_line(from_point_pos, pattern_position, color, pattern_line_width, anti_alias)
 			else:
 				var to_point_pos: Vector2 = pattern_position + Vector2(
-					radius * cos(to_point * TAU/8),
-					radius * -sin(to_point * TAU/8)
+					radius * cos(tilt + TAU/8 * to_point),
+					radius * -sin(tilt + TAU/8 * to_point)
 				)
 				draw_line(from_point_pos, to_point_pos, color, pattern_line_width, anti_alias)
 
 func draw_flag():
 	var draw_scale: float = 2.0
 	
-	for line: Array in flag.rotate_form():
-		var p1: Vector2 = flag.base + Vector2(line[0][0] * draw_scale, line[0][1] * draw_scale)
-		var p2: Vector2 = flag.base + Vector2(line[1][0] * draw_scale, line[1][1] * draw_scale)
+	for line: Array in flag.get_rotated_form():
+		var p1: Vector2 = flag.position + Vector2(line[0][0] * draw_scale, line[0][1] * draw_scale)
+		var p2: Vector2 = flag.position + Vector2(line[1][0] * draw_scale, line[1][1] * draw_scale)
 		var flag_color: Color = line[2]
 		
 		if flag_color == Color.TRANSPARENT:
@@ -322,23 +335,37 @@ func _draw() -> void:
 	# space
 	space_alpha = Global.line_width / Global.true_line_width
 	space_mod = Color(1,1,1,space_alpha)
-	#draw_texture(space, Vector2.ZERO, space_mod)
+	draw_texture(space, Vector2.ZERO, space_mod)
 	
 	# border
 	if not show_title:
-		border_color = ball.color
+		var border_color = ball.color
 		border_color.a *= aim_alpha_factor
-		#draw_rect(border, border_color, false, Global.line_width, anti_alias)
+		draw_rect(border, border_color, false, Global.line_width, anti_alias)
 	
 	# planet rims, patterns, etc.
 	for planet in Global.planets:
 		var planet_color: Color = element_data[planet.element].color
-		if planet_color == Color.BLACK:
-			# black planet background to prevent invisibility
-			draw_circle(planet.position, planet.radius, ghost_black, true, -1.0, anti_alias)
+		#if planet_color == Color.BLACK:
+			## black planet background to prevent invisibility
+			#draw_circle(planet.position, planet.radius, ghost_black.darkened(1 - Global.line_width / Global.true_line_width), true, -1.0, anti_alias)
 		draw_circle(planet.position, planet.radius, planet_color, false, Global.line_width, anti_alias)
 		if not show_title:
-			draw_pattern(planet.position, planet.element, planet.radius * 2/3, planet_color)
+			draw_symbol(planet.position, planet.element, planet.radius * 2/3, planet_color, Global.line_width, planet.tilt)
+			
+			# tick marks along radius
+			for i in range(0, 8):
+				var base_angle = i * TAU/8
+				
+				var x1: float = planet.radius * cos(base_angle + planet.tilt)
+				var y1: float = planet.radius * -sin(base_angle + planet.tilt)
+				var p1: Vector2 = Vector2(x1, y1) + planet.position
+				
+				var x2: float = planet.radius * 7/8 * cos(base_angle + planet.tilt)
+				var y2: float = planet.radius * 7/8 * -sin(base_angle + planet.tilt)
+				var p2: Vector2 = Vector2(x2, y2) + planet.position
+				
+				draw_line(p1, p2, planet_color, Global.line_width, anti_alias)
 		
 	# drag line and rings
 	if draw_drag_line:
@@ -347,16 +374,16 @@ func _draw() -> void:
 		#draw_circle(ball.position + (ball.position - drag_line_end_pos) / 2, ball.radius / 2, drag_color, true, -1.0, anti_alias)
 	
 	# launch timer ring
-	ring_radius = drag_dist/2 * launch_timer.time_left / launch_seconds
+	ring_radius = drag_dist/2 * launch_timer.time_left / launch_timer.wait_time
 	draw_circle(ball.position, ring_radius, drag_color, false, Global.line_width, anti_alias)
 	
 	# others: ball, flag, par, score
 	if not show_title:
 		draw_circle(ball.position, ball.radius, ball.color, true, -1.0, anti_alias)
 		draw_flag()
-		#draw_text('Par: ' + str(Global.par), par_text_pos, Global.default_text_height, border_color)
+		#draw_text('Par: ' + str(Global.par), par_text_pos, Global.default_text_height, ball.color)
 		#if draw_hole_text:
-			#hole_text_width = draw_text(hole_text, hole_text_pos, Global.default_text_height, border_color)
+			#hole_text_width = draw_text(hole_text, hole_text_pos, Global.default_text_height, ball.color)
 	else:
 		# title banner
 		draw_rect(title_banner, banner_color, true, -1.0, false)
@@ -377,4 +404,5 @@ func _draw() -> void:
 		offset_x = 2 * cos(seconds * frequency) * amplitude
 		offset_y = 2 * sin(seconds * frequency) * amplitude
 		subtitle_pos = Vector2(base_x - offset_x, base_y - offset_y)
-		subtitle_width = draw_text('Swipe to begin!', subtitle_pos, Global.default_text_height / 2)
+		subtitle_color = Color.from_hsv(fmod(Time.get_ticks_msec(), 10000)/10000, 1, 1)
+		subtitle_width = draw_text('SWIPE to begin!', subtitle_pos, Global.default_text_height / 2, subtitle_color)
