@@ -4,7 +4,7 @@ extends Node2D
 const max_launch_seconds: float = 1
 var launch_timer: Timer = Timer.new()
 var cancel_launch: bool = false
-var ball: Ball = Ball.new(Vector2(Global.game_width/2, Global.game_height/2))
+var ball: Ball = Ball.new(Vector2(Global.game_width / 2, Global.game_height * 2/3))
 
 # aiming
 const aim_alpha_factor: float = 1/3.
@@ -17,7 +17,7 @@ var max_drag_dist: float = Global.min_game_size / 2
 var ring_radius: float = 0.0
 
 # score (meta)
-var flag = Flag.new()
+var flag = Flag.new(ball.position)
 var score: int = 0
 var shots_this_hole: int = 0
 var hole_text: String = ''
@@ -34,22 +34,8 @@ var hole_text_color: Color = Color.TRANSPARENT
 
 # planets
 const ghost_black: Color = Color(.25,.25,.25,.5)
-var total_planets: int = Global.Element.size()
-var element_data: Dictionary = {
-	Global.Element.NONE: ElementData.new(),
-	Global.Element.EARTH: EarthData.new(),
-	Global.Element.FIRE: FireData.new(),
-	Global.Element.ENERGY: EnergyData.new(),
-	Global.Element.NATURE: NatureData.new(),
-	Global.Element.AIR: AirData.new(),
-	Global.Element.ICE: IceData.new(),
-	Global.Element.WATER: WaterData.new(),
-	Global.Element.MAGIC: MagicData.new(),
-	Global.Element.LOVE: LoveData.new(),
-	Global.Element.LIGHT: LightData.new(),
-	Global.Element.MIGHT: MightData.new(),
-	Global.Element.SIGHT: SightData.new(),
-}
+var total_planets: int = Global.Element.size() - 1
+var element_data: Dictionary = {}
 
 # click
 var click_start_pos: Vector2 = Vector2.ZERO
@@ -74,7 +60,7 @@ var subtitle_width: float = 0.0
 var subtitle_color: Color = Color.TRANSPARENT
 var title_pos: Vector2 = Vector2.ZERO
 var subtitle_pos: Vector2 = Vector2.ZERO
-var title_banner: Rect2 = Rect2(Vector2(0, Global.game_height / 2 - Global.default_text_height), Vector2(Global.game_width, Global.default_text_height * 2))
+var title_banner: Rect2 = Rect2(Vector2(0, Global.game_height / 4 - Global.default_text_height), Vector2(Global.game_width, Global.default_text_height * 2))
 var subtitle_banner: Rect2 = Rect2(Vector2(0, title_banner.end.y + Global.default_text_height / 2), Vector2(Global.game_width, Global.default_text_height * 1.5))
 
 ######################
@@ -101,11 +87,17 @@ func rank_up(element: Global.Element) -> Global.Element:
 ######################
 
 func _ready() -> void:
+	for element in Global.Element.values():
+		element_data[element] = ElementData.new(element)
+	
+	flag.planet = ball
+	
 	# generate planets
 	var planet_sizes: Array = []
 	for i in Global.Element.size() - 1:
 		planet_sizes.append(i)
-	for element_i: int in range(1, total_planets):
+		
+	for element_i: int in range(1, total_planets + 1):
 		var planet_element: Global.Element = Global.Element.values()[element_i]
 		
 		var fraction: float = 1 / float(Global.Element.size() - 2)
@@ -117,11 +109,6 @@ func _ready() -> void:
 		var planet_y: float = randf_range(0, Global.game_height)
 		var planet_pos: Vector2 = Vector2(planet_x, planet_y)
 		Global.planets.append(Planet.new(planet_pos, Global.drift_speed, planet_radius, planet_element))
-	
-	# place flag on planet of rank 1
-	for planet: Planet in Global.planets:
-		if element_data[planet.element].rank == 1:
-			flag.planet = planet
 	
 	# launch timer
 	add_child(launch_timer)
@@ -140,7 +127,13 @@ func _input(event: InputEvent) -> void:
 				
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
-				show_title = false
+				# place flag on planet of rank 1
+				if show_title == true:
+					show_title = false
+					for planet: Planet in Global.planets:
+						if element_data[planet.element].rank == 1:
+							flag.planet = planet
+							break
 				cancel_launch = false
 				click_start_pos = event.position
 				draw_drag_line = true
@@ -151,7 +144,7 @@ func _input(event: InputEvent) -> void:
 				draw_launch_text = true
 				launch_text_pos = ball.position
 				launch_text_pos.y -= Global.default_text_height
-				launch_timer.wait_time = max_launch_seconds * drag_dist / max_drag_dist
+				launch_timer.wait_time = max(.1, max_launch_seconds * drag_dist / max_drag_dist)
 				launch_timer.start()
 				await launch_timer.timeout
 				draw_launch_text = false
@@ -235,9 +228,9 @@ func _process(_delta: float) -> void:
 				if planet.element == next_element:
 					# move flag to next planet and adjust score
 					score += shots_this_hole - Global.par
-					if flag.planet.element == Global.Element.SIGHT:
-						Global.par += 1
-						score = 0
+					#if flag.planet.element == Global.Element.SIGHT:
+						#Global.par += 1
+						#score = 0
 					hole_text_pos = ball.position
 					hole_text_pos.x = Global.default_text_height / 2
 					hole_text_pos.y = clamp(hole_text_pos.y - Global.default_text_height * 1.5, Global.default_text_height * 2, Global.game_height - Global.default_text_height * 1.5)
@@ -261,32 +254,37 @@ func draw_symbol(pattern_position: Vector2, element: Global.Element, radius: flo
 		for to_point: Variant in element_data[element].symbol[from_point]:
 			var from_point_pos: Vector2 = pattern_position + Vector2(
 				radius * cos(tilt + TAU/8 * from_point),
-				radius * -sin(tilt + TAU/8 * from_point)
+				radius * sin(tilt + TAU/8 * from_point)
 			)
 			if str(to_point) == 'C':
 				draw_line(from_point_pos, pattern_position, color, pattern_line_width, anti_alias)
 			else:
 				var to_point_pos: Vector2 = pattern_position + Vector2(
 					radius * cos(tilt + TAU/8 * to_point),
-					radius * -sin(tilt + TAU/8 * to_point)
+					radius * sin(tilt + TAU/8 * to_point)
 				)
 				draw_line(from_point_pos, to_point_pos, color, pattern_line_width, anti_alias)
 
-func draw_flag():
+func draw_flag(spectral_color: Color = Color.TRANSPARENT):
+	var ghosted: bool = false if spectral_color == Color.TRANSPARENT else true
 	var draw_scale: float = 2.0
-	
+	var flag_color: Variant = Color.TRANSPARENT
+	var triangle: PackedVector2Array = []
 	for line: Array in flag.get_rotated_form():
 		var p1: Vector2 = flag.position + Vector2(line[0][0] * draw_scale, line[0][1] * draw_scale)
 		var p2: Vector2 = flag.position + Vector2(line[1][0] * draw_scale, line[1][1] * draw_scale)
-		var flag_color: Color = line[2]
-		
-		if flag_color == Color.TRANSPARENT:
-			var new_color: Color = element_data[flag.planet.element].color
-			if new_color != Color(0,0,0):
-				flag_color = new_color
-			else: flag_color = ghost_black
-		
+		if not ghosted:
+			triangle.append(p2)
+		flag_color = line[2] if not ghosted else spectral_color
+		if typeof(flag_color) == TYPE_STRING and flag_color == 'P':
+			if flag.planet and flag.planet is Planet:
+				flag_color = element_data[flag.planet.element].color
+			else:
+				flag_color = Color.TRANSPARENT
 		draw_line(p1, p2, flag_color, Global.line_width, anti_alias)
+	if not ghosted and flag.planet is Planet:
+		flag_color = element_data[flag.planet.element].color
+		draw_colored_polygon(triangle, flag_color)
 
 func draw_text(text: String, top_left: Vector2, height: float = Global.default_text_height, color: Color = Color(1,1,1), wrap_text: bool = false) -> float:
 	var cell_size: float = height/4
@@ -358,11 +356,11 @@ func _draw() -> void:
 				var base_angle = i * TAU/8
 				
 				var x1: float = planet.radius * cos(base_angle + planet.tilt)
-				var y1: float = planet.radius * -sin(base_angle + planet.tilt)
+				var y1: float = planet.radius * sin(base_angle + planet.tilt)
 				var p1: Vector2 = Vector2(x1, y1) + planet.position
 				
 				var x2: float = planet.radius * 7/8 * cos(base_angle + planet.tilt)
-				var y2: float = planet.radius * 7/8 * -sin(base_angle + planet.tilt)
+				var y2: float = planet.radius * 7/8 * sin(base_angle + planet.tilt)
 				var p2: Vector2 = Vector2(x2, y2) + planet.position
 				
 				draw_line(p1, p2, planet_color, Global.line_width, anti_alias)
@@ -385,6 +383,10 @@ func _draw() -> void:
 		#if draw_hole_text:
 			#hole_text_width = draw_text(hole_text, hole_text_pos, Global.default_text_height, ball.color)
 	else:
+		# spectral ball & flag
+		draw_circle(ball.position, ball.radius, subtitle_color, false, 1, anti_alias)
+		draw_flag(subtitle_color)
+		
 		# title banner
 		draw_rect(title_banner, banner_color, true, -1.0, false)
 		var amplitude: float = .5
