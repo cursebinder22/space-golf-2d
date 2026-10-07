@@ -32,7 +32,7 @@ func move() -> void:
 		position += Global.drift_speed * direction
 		for other_planet: Planet in Global.planets:
 			var pp_dist: float = position.distance_to(other_planet.position)
-			var min_pp_dist: float = radius + other_planet.radius + Global.init_ball_radius * 2 + 1
+			var min_pp_dist: float = radius + other_planet.radius + Global.init_ball_radius * 4
 			
 			if other_planet != self and pp_dist < min_pp_dist:
 				position = other_planet.position + min_pp_dist * other_planet.position.direction_to(position)
@@ -41,19 +41,16 @@ func move() -> void:
 				other_planet.position = position + min_pp_dist * position.direction_to(other_planet.position)
 				other_planet.direction = position.direction_to(other_planet.position)
 			
-		if position.x < radius + 2 * Global.init_ball_radius + 1:
+		if position.x < radius + 4 * Global.init_ball_radius:
 			direction.x = abs(direction.x)
-			position.x = radius + 2 * Global.init_ball_radius + 1
-		elif position.x > Global.game_width - radius - 2 * Global.init_ball_radius - 1:
+			position.x = radius + 4 * Global.init_ball_radius
+		elif position.x > Global.game_width - radius - 4 * Global.init_ball_radius:
 			direction.x *= -abs(direction.x)
-			position.x = Global.game_width - radius - 2 * Global.init_ball_radius - 1
+			position.x = Global.game_width - radius - 4 * Global.init_ball_radius
 		
-		#if position.y < radius + Global.default_text_height * 2:
-			#direction.y = abs(direction.y)
-			#position.y = radius + Global.default_text_height * 2
-		if position.y < radius + 2 * Global.init_ball_radius + 1:
+		if position.y < radius + 4 * Global.init_ball_radius:
 			direction.y = abs(direction.y)
-			position.y = radius + 2 * Global.init_ball_radius + 1
-		elif position.y > Global.game_height - radius - 2 * Global.init_ball_radius - 1:
+			position.y = radius + 4 * Global.init_ball_radius
+		elif position.y > Global.game_height - radius - 4 * Global.init_ball_radius:
 			direction.y = -abs(direction.y)
-			position.y = Global.game_height - radius - 2 * Global.init_ball_radius - 1
+			position.y = Global.game_height - radius - 4 * Global.init_ball_radius

@@ -81,7 +81,7 @@ func _init(element: Global.Element) -> void:
 				6: [7],
 				7: ['C'],
 			}
-		Global.Element.LOVE:
+		Global.Element.BEAUTY:
 			rank = 9
 			color = Color(1,.5,1)
 			symbol = {
@@ -102,7 +102,7 @@ func _init(element: Global.Element) -> void:
 				4: [6],
 				5: [7]
 			}
-		Global.Element.MIGHT:
+		Global.Element.GRAVITY:
 			rank = 11
 			color = Color(.5,.5,.5)
 			symbol = {
@@ -113,7 +113,7 @@ func _init(element: Global.Element) -> void:
 				5: [6,7],
 				6: [7]
 			}
-		Global.Element.SIGHT:
+		Global.Element.SPACE:
 			rank = 12
 			color = Color(.25,.25,.25)
 			symbol = {
